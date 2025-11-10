@@ -1,0 +1,73 @@
+{
+    "_comment_api": "=== API & Testnet ===",
+    "api_key": "TRXPKF1eCPBKX2HIUacxIcbARSfhkPgJk1BxmKnqOyoKaI5AVMQESPSZfLB4CuhX",
+    "api_secret": "PVpRHMEoqEqP6DssUzSgtwHvbfZUVgyAJN9AF0dgmYHN0nksM8QK9k1RLm2ksQex",
+    "base_symbol": "BTCUSDT",
+    "testnet": true,
+    "order_test": true,
+
+    "_comment_capital": "=== Startkapital ===",
+    "paper_usdt": 5000,
+    "paper_btc": 0.05,
+
+    "_comment_strategy": "=== STRATEGI-PARAMETRAR (OPTIMERA DESSA!) ===",
+    
+    "tp_pct": 0.001,
+    "_comment_tp": "Take Profit %. 0.001 = 0.10%. Prova: 0.0005, 0.001, 0.0015, 0.002, 0.003",
+    
+    "sl_pct": null,
+    "_comment_sl": "Stop Loss %. null = ingen SL, bara BE. Prova: 0.0005, 0.001, 0.002",
+    
+    "be_offset_pct": 0.0004,
+    "_comment_be": "Breakeven offset %. Hur långt under entry innan BE? Standard: taker_fee_pct",
+    
+    "trailing_stop": false,
+    "_comment_trailing": "Trailing stop? true/false. Följer priset uppåt för att maximera vinst",
+    
+    "trailing_offset_pct": 0.0005,
+    "_comment_trailing_offset": "Trailing stop avstånd från högsta/lägsta pris",
+
+    "min_movement_pct": 0.0001,
+    "_comment_min_movement": "Minsta rörelse för entry. 0.0001 = 0.01%. Undviker 'fladder'",
+    
+    "order_qty": 0.001,
+    "_comment_order_qty": "Kvantitet per trade. Eller använd position_size_pct",
+    
+    "position_size_pct": null,
+    "_comment_position_size": "Dynamisk sizing. null = använd order_qty. 0.1 = 10% av kapital per trade",
+    
+    "max_position_size": 0.01,
+    "_comment_max_position": "Max kvantitet per trade (säkerhetsgräns)",
+
+    "volatility_filter": false,
+    "_comment_volatility": "Bara trade vid hög volatilitet? Prova: false, true",
+    
+    "volatility_period": 20,
+    "_comment_vol_period": "Antal ticks för volatilitetsberäkning",
+    
+    "min_volatility": 0.001,
+    "_comment_min_vol": "Minsta volatilitet för trade (om filter aktiverat)",
+
+    "l_update_strategy": "on_exit",
+    "_comment_l_update": "När uppdatera L? 'on_exit' / 'on_tp_only' / 'periodic'",
+    
+    "l_update_interval": 300,
+    "_comment_l_interval": "Om 'periodic': uppdatera L var X sekunder",
+
+    "_comment_execution": "=== Exekvering ===",
+    "taker_fee_pct": 0.0004,
+    "poll_sec": 0.5,
+
+    "_comment_filters": "=== TIDS- & VOLYMFILTER ===",
+    "time_filter": false,
+    "_comment_time_filter": "Bara trade vissa tider?",
+    
+    "trading_hours_utc": [[8, 22]],
+    "_comment_trading_hours": "Trading-timmar UTC. [[8,22]] = 08:00-22:00",
+    
+    "volume_filter": false,
+    "_comment_volume_filter": "Kräv viss volym för entry?",
+    
+    "min_volume_24h": 1000000000,
+    "_comment_min_volume": "Minsta 24h-volym i USDT"
+}

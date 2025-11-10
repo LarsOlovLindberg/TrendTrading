@@ -1,0 +1,64 @@
+{
+  "_comment_api": "=== API & Testnet ===",
+  "api_key": "YOUR_BINANCE_API_KEY_HERE",
+  "api_secret": "YOUR_BINANCE_API_SECRET_HERE",
+  "base_symbol": "BTCUSDT",
+  "testnet": true,
+  "order_test": true,
+  
+  "_comment_capital": "=== Starting Capital for PAPER TRADING ===",
+  "paper_usdt": 10000,
+  "paper_btc": 0.0,
+  
+  "_comment_strategy": "=== STRATEGY PARAMETERS ===",
+  "tp_pct": 0.0010,
+  "sl_pct": null,
+  "be_offset_pct": 0.0004,
+  
+  "_comment_exec": "=== Execution ===",
+  "taker_fee_pct": 0.0004,
+  "poll_sec": 0.5,
+  "order_qty": 0.001,
+  
+  "_comment_filters": "=== Filters ===",
+  "time_filter": false,
+  "volume_filter": false,
+  "volatility_filter": false,
+  
+  "_comment_movement": "=== Movement Thresholds ===",
+  "min_movement_pct": 0.0001,
+  "rearm_gap_pct": 0.0003,
+  
+  "_comment_chain": "=== Chain Settings ===",
+  "tp_chain": true,
+  "tp_chain_gap_pct": 0.0002,
+  "tp_chain_max": 20,
+  "cooldown_sec": 0.0,
+  
+  "_comment_pause": "=== Loss Pause ===",
+  "loss_pause_count": 0,
+  "loss_pause_sec": 0.0,
+  "pause_resume_pct": 0.0003,
+  
+  "_comment_scaling": "=== Progressive Scaling ===",
+  "progressive_scaling": true,
+  "initial_position_multiplier": 1.0,
+  "scale_in_enabled": true,
+  "scale_in_levels": [0.0003, 0.0006, 0.0009, 0.0012, 0.0015],
+  "scale_in_multiplier": 0.20,
+  "max_scale_multiplier": 1.0,
+  "scale_out_enabled": true,
+  "scale_out_levels": [0.0003, 0.0006, 0.0009, 0.0012, 0.0015],
+  "scale_out_multiplier": 0.20,
+  "min_scale_multiplier": 0.0,
+  
+  "_comment_chart": "=== Chart ===",
+  "show_chart": true,
+  "chart_max_points": 800,
+  "chart_refresh_ticks": 3,
+  
+  "_comment_adaptive_l": "=== Adaptive L (Optional) ===",
+  "adaptive_L_enabled": false,
+  "adaptive_L_baseline_window": 800,
+  "adaptive_L_trend_window": 150
+}
