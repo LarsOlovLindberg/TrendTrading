@@ -52,6 +52,11 @@
   "scale_out_multiplier": 0.20,
   "min_scale_multiplier": 0.0,
   
+  "_comment_protection": "=== Max Loss Protection (CRITICAL!) ===",
+  "max_loss_pct": 1.5,
+  "max_position_time_sec": 1800,
+  "force_exit_on_mode_switch": true,
+  
   "_comment_chart": "=== Chart ===",
   "show_chart": true,
   "chart_max_points": 800,

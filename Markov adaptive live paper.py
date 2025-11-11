@@ -437,6 +437,14 @@ SCALE_OUT_LEVELS = [Decimal(str(x)) for x in cfg.get("scale_out_levels", [0.0003
 SCALE_OUT_MULT = Decimal(str(cfg.get("scale_out_multiplier", 0.3)))
 MIN_SCALE_MULT = Decimal(str(cfg.get("min_scale_multiplier", 0.2)))
 
+# ========== MAX LOSS PROTECTION (KRITISKT!) ==========
+# Ingen position får förlora mer än initial investment!
+MAX_LOSS_PCT = Decimal(str(cfg.get("max_loss_pct", "1.5")))  # Max 1.5% förlust
+MAX_POSITION_TIME_SEC = float(cfg.get("max_position_time_sec", 1800))  # Max 30 min per position
+FORCE_EXIT_ON_MODE_SWITCH = bool(cfg.get("force_exit_on_mode_switch", True))  # Exit vid mode-byte
+
+print(f"🛡️ SAFETY: Max loss {MAX_LOSS_PCT}% | Max time {MAX_POSITION_TIME_SEC/60:.0f}min | Force exit on mode switch: {FORCE_EXIT_ON_MODE_SWITCH}")
+
 # Startkapital för PAPER
 START_USDT     = Decimal(str(cfg.get("paper_usdt", "10000")))
 START_BTC      = Decimal(str(cfg.get("paper_btc",  "0.0")))
@@ -648,6 +656,20 @@ class Position:
             self.high = price
         if self.low is None or price < self.low:
             self.low = price
+    
+    def unrealized_pnl_pct(self, current_price: Decimal) -> Decimal:
+        """Beräkna unrealized PnL% baserat på genomsnittligt entry-pris"""
+        if self.qty == 0 or self.entry is None:
+            return Decimal("0")
+        
+        avg_entry = self.avg_entry_price()
+        if avg_entry == 0:
+            return Decimal("0")
+        
+        if self.side == "LONG":
+            return (current_price - avg_entry) / avg_entry * Decimal("100")
+        else:  # SHORT
+            return (avg_entry - current_price) / avg_entry * Decimal("100")
 
 pos   = Position()
 mk    = MarkovState()
@@ -1177,6 +1199,67 @@ def do_exit(side: str, exit_price: Decimal, state_tag: str):
     # Ingen FLAT här - ny position har redan öppnats i maybe_exit vid L-korsning
     # Position är redan aktiv på andra sidan L
 
+# ----------------------- MAX LOSS PROTECTION ---------------------------------
+def check_max_loss_protection(price: Decimal) -> bool:
+    """
+    KRITISK FUNKTION: Tvingad exit om:
+    1. Unrealized loss > MAX_LOSS_PCT
+    2. Position hålls > MAX_POSITION_TIME_SEC
+    3. Mode bytte och FORCE_EXIT_ON_MODE_SWITCH = True
+    
+    Returns: True om position stängdes
+    """
+    global L
+    
+    if pos.side == "FLAT" or pos.entry is None:
+        return False
+    
+    # 1. Kolla unrealized loss
+    unrealized_pnl = pos.unrealized_pnl_pct(price)
+    if unrealized_pnl < -MAX_LOSS_PCT:
+        print(f"\n{'='*70}")
+        print(f"🛑 MAX LOSS PROTECTION TRIGGERED!")
+        print(f"   Unrealized loss: {float(unrealized_pnl):.3f}% (max: -{float(MAX_LOSS_PCT):.1f}%)")
+        print(f"   Closing position at {price:.2f} to prevent further damage")
+        print(f"{'='*70}\n")
+        
+        qty = pos.qty if pos.qty > 0 else ORDER_QTY
+        if ORDER_TEST:
+            if pos.side == "LONG":
+                paper.market_sell(SYMBOL, qty, price)
+            else:
+                paper.market_buy(SYMBOL, qty, price)
+        
+        do_exit(pos.side, price, "MAX_LOSS")
+        pos.flat()
+        L = price
+        return True
+    
+    # 2. Kolla position tid
+    if pos.entry_time > 0:
+        time_in_position = time.time() - pos.entry_time
+        if time_in_position > MAX_POSITION_TIME_SEC:
+            print(f"\n{'='*70}")
+            print(f"⏰ MAX TIME PROTECTION TRIGGERED!")
+            print(f"   Time in position: {time_in_position/60:.1f} min (max: {MAX_POSITION_TIME_SEC/60:.0f} min)")
+            print(f"   Unrealized PnL: {float(unrealized_pnl):.3f}%")
+            print(f"   Closing position at {price:.2f}")
+            print(f"{'='*70}\n")
+            
+            qty = pos.qty if pos.qty > 0 else ORDER_QTY
+            if ORDER_TEST:
+                if pos.side == "LONG":
+                    paper.market_sell(SYMBOL, qty, price)
+                else:
+                    paper.market_buy(SYMBOL, qty, price)
+            
+            do_exit(pos.side, price, "MAX_TIME")
+            pos.flat()
+            L = price
+            return True
+    
+    return False
+
 # ----------------------- ENTRY/EXIT kontroller -------------------------------
 def maybe_exit(price: Decimal):
     """
@@ -1197,11 +1280,13 @@ def maybe_exit(price: Decimal):
                 print(f"✅ LONG EXIT [BREAKOUT]: TP nådd @ {price:.2f} (target {tp_target:.2f})")
                 if ORDER_TEST:
                     paper.market_sell(SYMBOL, qty, price)
+                pnl_usd, pnl_pct = paper.log_exit("LW", "LONG", SYMBOL, qty, price, pos.avg_entry_price())
                 do_exit("LONG", price, "LW")
                 # I BREAKOUT: L följer entry, flytta L uppåt
                 L = price
-                # Fortsätt med ny LONG om momentum fortsätter
-                enter_long(price)
+                # GÅ FLAT vid vinst - låt maybe_enter avgöra nästa trade
+                pos.flat()
+                print(f"✅ TP hit - going FLAT. PnL: {float(pnl_pct):.2f}%")
                 refresh_lines(price)
                 return
             # Stop Loss: pris går tillbaka till L eller under
@@ -1209,22 +1294,27 @@ def maybe_exit(price: Decimal):
                 print(f"🛑 LONG STOP [BREAKOUT]: Pris tillbaka till L @ {price:.2f}")
                 if ORDER_TEST:
                     paper.market_sell(SYMBOL, qty, price)
+                pnl_usd, pnl_pct = paper.log_exit("LB", "LONG", SYMBOL, qty, price, pos.avg_entry_price())
                 do_exit("LONG", price, "LB")
                 L = price
-                # Byt riktning: priset bröt nedåt
-                enter_short(price)
+                # GÅ FLAT vid förlust - låt maybe_enter avgöra om vi ska fortsätta
+                pos.flat()
+                print(f"🛑 Stop hit - going FLAT. PnL: {float(pnl_pct):.2f}%")
                 refresh_lines(price)
         else:  # MEAN_REVERSION
             # MEAN_REVERSION LONG: TP vid återgång till L (uppåt), Stop vid fortsatt fall
             if price >= L:
-                print(f"✅ LONG EXIT [REVERSION]: Priset {price:.2f} nådde L {L:.2f} → SHORT")
+                print(f"✅ LONG EXIT [REVERSION]: Priset {price:.2f} nådde L {L:.2f}")
                 if ORDER_TEST:
                     paper.market_sell(SYMBOL, qty, price)
+                pnl_usd, pnl_pct = paper.log_exit("LW", "LONG", SYMBOL, qty, price, pos.avg_entry_price())
                 do_exit("LONG", price, "LW")
                 # Flytta L till korsningspunkten
                 L = price
-                # Öppna SHORT (priset är nu över L)
-                enter_short(price)
+                # GÅ FLAT istället för att öppna ny position direkt
+                # Låt maybe_enter avgöra om/när nästa position ska öppnas
+                pos.flat()
+                print(f"✅ Win exit - going FLAT. PnL: {float(pnl_pct):.2f}%")
                 refresh_lines(price)
 
     elif pos.side == "SHORT" and pos.entry is not None:
@@ -1236,11 +1326,13 @@ def maybe_exit(price: Decimal):
                 print(f"✅ SHORT EXIT [BREAKOUT]: TP nådd @ {price:.2f} (target {tp_target:.2f})")
                 if ORDER_TEST:
                     paper.market_buy(SYMBOL, qty, price)
+                pnl_usd, pnl_pct = paper.log_exit("SW", "SHORT", SYMBOL, qty, price, pos.avg_entry_price())
                 do_exit("SHORT", price, "SW")
                 # I BREAKOUT: L följer entry, flytta L nedåt
                 L = price
-                # Fortsätt med ny SHORT om momentum fortsätter
-                enter_short(price)
+                # GÅ FLAT vid vinst
+                pos.flat()
+                print(f"✅ TP hit - going FLAT. PnL: {float(pnl_pct):.2f}%")
                 refresh_lines(price)
                 return
             # Stop Loss: pris går tillbaka till L eller över
@@ -1248,22 +1340,26 @@ def maybe_exit(price: Decimal):
                 print(f"🛑 SHORT STOP [BREAKOUT]: Pris tillbaka till L @ {price:.2f}")
                 if ORDER_TEST:
                     paper.market_buy(SYMBOL, qty, price)
+                pnl_usd, pnl_pct = paper.log_exit("SB", "SHORT", SYMBOL, qty, price, pos.avg_entry_price())
                 do_exit("SHORT", price, "SB")
                 L = price
-                # Byt riktning: priset bröt uppåt
-                enter_long(price)
+                # GÅ FLAT vid förlust
+                pos.flat()
+                print(f"🛑 Stop hit - going FLAT. PnL: {float(pnl_pct):.2f}%")
                 refresh_lines(price)
         else:  # MEAN_REVERSION
             # MEAN_REVERSION SHORT: TP vid återgång till L (nedåt), Stop vid fortsatt stigning
             if price <= L:
-                print(f"✅ SHORT EXIT [REVERSION]: Priset {price:.2f} nådde L {L:.2f} → LONG")
+                print(f"✅ SHORT EXIT [REVERSION]: Priset {price:.2f} nådde L {L:.2f}")
                 if ORDER_TEST:
                     paper.market_buy(SYMBOL, qty, price)
+                pnl_usd, pnl_pct = paper.log_exit("SW", "SHORT", SYMBOL, qty, price, pos.avg_entry_price())
                 do_exit("SHORT", price, "SW")
                 # Flytta L till korsningspunkten
                 L = price
-                # Öppna LONG (priset är nu under L)
-                enter_long(price)
+                # GÅ FLAT istället för att öppna ny position direkt
+                pos.flat()
+                print(f"✅ Win exit - going FLAT. PnL: {float(pnl_pct):.2f}%")
                 refresh_lines(price)
 
 def maybe_enter(price: Decimal):
@@ -1585,6 +1681,26 @@ def main():
                         'size': 7
                     })
                     
+                    # TVINGAD EXIT vid mode-byte (om aktiverat)
+                    if FORCE_EXIT_ON_MODE_SWITCH and pos.side != "FLAT":
+                        unrealized_pnl = pos.unrealized_pnl_pct(price)
+                        print(f"\n{'='*70}")
+                        print(f"🔄 MODE SWITCH EXIT: Closing {pos.side} position")
+                        print(f"   Reason: Strategy mode changed to {current_mode}")
+                        print(f"   Unrealized PnL: {float(unrealized_pnl):.3f}%")
+                        print(f"{'='*70}\n")
+                        
+                        qty = pos.qty if pos.qty > 0 else ORDER_QTY
+                        if ORDER_TEST:
+                            if pos.side == "LONG":
+                                paper.market_sell(SYMBOL, qty, price)
+                            else:
+                                paper.market_buy(SYMBOL, qty, price)
+                        
+                        do_exit(pos.side, price, "MODE_SWITCH")
+                        pos.flat()
+                        L = price
+                    
                     # Visa VARFÖR mode bytte
                     metrics = trend_detector.get_detailed_metrics()
                     print(f"\n{'='*60}")
@@ -1643,6 +1759,15 @@ def main():
             if pos.side != "FLAT":
                 check_scale_in(price)
                 check_scale_out(price)
+
+            # 🛡️ KRITISK: Kolla max loss protection FÖRST (innan normal exit)
+            if pos.side != "FLAT":
+                if check_max_loss_protection(price):
+                    # Position stängdes av safety - skippa normal exit/entry
+                    refresh_lines(price)
+                    tick += 1
+                    time.sleep(POLL_SEC)
+                    continue
 
             # EXIT → ENTRY (kedja/vändning) sker inne i do_exit/maybe_exit
             maybe_exit(price)
