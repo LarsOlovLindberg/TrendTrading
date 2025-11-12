@@ -1681,21 +1681,21 @@ def refresh_lines(current_price: Decimal):
     total_change_usdt = total_usdt_value - initial_total
     total_change_pct = (total_change_usdt / initial_total * 100) if initial_total > 0 else 0
     
-    # Formatera balance text (compact, monospace)
+    # Formatera balance text (compact, monospace) - alla rader exakt 15 tecken bred
     balance_info = (
         f"╔═══ BALANCE ═══╗\n"
         f"║ START         ║\n"
-        f"║ USDT: {float(INITIAL_USDT):>8.2f} ║\n"
-        f"║  BTC: {float(INITIAL_BTC):>8.5f} ║\n"
-        f"║ Total: {initial_total:>7.2f} ║\n"
+        f"║ USDT:{float(INITIAL_USDT):>9.2f} ║\n"
+        f"║  BTC:{float(INITIAL_BTC):>9.5f} ║\n"
+        f"║Total:{initial_total:>9.2f} ║\n"
         f"╠═══════════════╣\n"
         f"║ NOW           ║\n"
-        f"║ USDT: {current_usdt:>8.2f} ║\n"
-        f"║  BTC: {total_btc:>8.5f} ║\n"
-        f"║ Total: {total_usdt_value:>7.2f} ║\n"
+        f"║ USDT:{current_usdt:>9.2f} ║\n"
+        f"║  BTC:{total_btc:>9.5f} ║\n"
+        f"║Total:{total_usdt_value:>9.2f} ║\n"
         f"╠═══════════════╣\n"
-        f"║ P&L: {total_change_usdt:>+8.2f} ║\n"
-        f"║     {total_change_pct:>+7.2f}% ║\n"
+        f"║ P&L:{total_change_usdt:>+10.2f} ║\n"
+        f"║    {total_change_pct:>+8.2f}% ║\n"
         f"╚═══════════════╝"
     )
     
