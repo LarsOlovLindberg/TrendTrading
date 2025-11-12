@@ -841,8 +841,8 @@ def enter_long(price: Decimal):
         'abs_tick': tick_offset + len(py) - 1,  # Absolut tick-nummer
         'y': float(price),
         'text': f'L↑{size_str}',  # En rad, mer kompakt
-        'color': 'white',
-        'bgcolor': 'green',
+        'color': 'black',
+        'bgcolor': 'lightgreen',  # ÄNDRAT: ljusgrön för LONG entry
         'size': 6  # Mindre text
     })
 
@@ -1069,14 +1069,14 @@ def do_exit(side: str, exit_price: Decimal, state_tag: str):
         print(f"🔚 EXIT SHORT @ {exit_price:.2f} (entry {entry:.2f}) PnL: {pnl_pct:.3f}% (${pnl_usd:.4f}) [{state_tag}]")
     
     # Lägg till exit-markering på grafen (kompakt)
-    # Grön för vinst (LW/SW), röd för förlust (LB/SB)
+    # Mörkgrön för vinst (LW/SW), mörkröd för förlust (LB/SB)
     is_win = state_tag in ("LW", "SW")
     trade_annotations.append({
         'abs_tick': tick_offset + len(py) - 1,  # Absolut tick-nummer
         'y': float(exit_price),
         'text': f'{"✓" if is_win else "✗"}{float(pnl_pct):.2f}%',  # En rad
         'color': 'white',
-        'bgcolor': 'green' if is_win else 'darkred',
+        'bgcolor': 'darkgreen' if is_win else 'darkred',  # ÄNDRAT: mörkgrön för vinst
         'size': 6
     })
 
@@ -1499,10 +1499,10 @@ ax.grid(True, alpha=0.3)
 # Legend för textmarkeringar
 from matplotlib.patches import Patch
 legend_elements = [
-    Patch(facecolor='green', edgecolor='black', label='L↑/S↓: Entry'),
+    Patch(facecolor='lightgreen', edgecolor='black', label='L↑/S↓: Entry'),  # Ljusgrön för entry
     Patch(facecolor='cyan', edgecolor='black', label='↑: Scale In'),
     Patch(facecolor='yellow', edgecolor='black', label='↓: Scale Out'),
-    Patch(facecolor='green', edgecolor='black', label='✓: Exit Vinst'),
+    Patch(facecolor='darkgreen', edgecolor='black', label='✓: Exit Vinst'),  # Mörkgrön för vinst
     Patch(facecolor='darkred', edgecolor='black', label='✗: Exit Förlust'),
     Patch(facecolor='orange', edgecolor='black', label='📈: Breakout Mode'),
     Patch(facecolor='cyan', edgecolor='black', label='🔄: Reversion Mode'),
