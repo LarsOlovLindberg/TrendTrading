@@ -9,6 +9,16 @@
 
 ## 📝 Changelog
 
+### Version 2.1.2 (2025-11-12) - Hotfix: Scale In/Out Conflict
+**Bugfix:**
+- 🔧 **Fixed simultaneous scale in/out**: Båda funktionerna kördes varje tick och kunde trigga samtidigt
+- ✅ **Added directional logic**: Kollar prisriktning och kör bara EN scaling-funktion per tick
+  - LONG: Price < entry → scale OUT, Price > low → scale IN
+  - SHORT: Price > entry → scale OUT, Price < high → scale IN
+
+**Motivation:**  
+Användare såg massa cyan och gula markers samtidigt på grafen. Scale IN och OUT triggades på samma tick vilket är logiskt fel.
+
 ### Version 2.1.1 (2025-11-12) - Hotfix: Re-entry Logic
 **Bugfix:**
 - 🔧 **Fixed FLAT lock**: Strategin stannade FLAT efter exit och öppnade aldrig nya positioner

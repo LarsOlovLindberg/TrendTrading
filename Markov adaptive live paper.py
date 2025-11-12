@@ -1781,9 +1781,21 @@ def main():
             pos.update_extremes(price)
 
             # Progressiv scaling (om position finns)
+            # VIKTIGT: Kör bara EN av dem per tick för att undvika samtidig scale in/out
             if pos.side != "FLAT":
-                check_scale_in(price)
-                check_scale_out(price)
+                # Bestäm vilken riktning priset rör sig
+                if pos.side == "LONG":
+                    # LONG: price går NER = scale OUT, price går UPP = scale IN
+                    if price < pos.entry:
+                        check_scale_out(price)  # Price moving away from L (down)
+                    elif price > pos.low:  # Only scale in if recovering from low
+                        check_scale_in(price)   # Price recovering toward L
+                else:  # SHORT
+                    # SHORT: price går UPP = scale OUT, price går NER = scale IN
+                    if price > pos.entry:
+                        check_scale_out(price)  # Price moving away from L (up)
+                    elif price < pos.high:  # Only scale in if recovering from high
+                        check_scale_in(price)   # Price recovering toward L
 
             # 🛡️ KRITISK: Kolla max loss protection FÖRST (innan normal exit)
             if pos.side != "FLAT":
