@@ -449,6 +449,11 @@ print(f"🛡️ SAFETY: Max loss {MAX_LOSS_PCT}% | Max time {MAX_POSITION_TIME_S
 START_USDT     = Decimal(str(cfg.get("paper_usdt", "10000")))
 START_BTC      = Decimal(str(cfg.get("paper_btc",  "0.0")))
 
+# Spara startsaldon för balance display (kommer sättas när paper account initieras)
+INITIAL_USDT = START_USDT
+INITIAL_BTC = START_BTC
+INITIAL_TOTAL_USDT = START_USDT  # Kommer uppdateras med BTC värde
+
 # Logg-filer
 LOG_DIR        = os.path.join(ROOT, "logs")
 ORDERS_CSV     = os.path.join(LOG_DIR, "orders_paper.csv")
@@ -1491,6 +1496,11 @@ pos_text = ax.text(0.99, 0.97, '', transform=ax.transAxes, fontsize=10,
                    va='top', ha='right', fontweight='bold',
                    bbox=dict(boxstyle="round,pad=0.5", alpha=0.8, facecolor='lightyellow'))
 
+# Balance info box (under pos_text, övre högra hörnet)
+balance_text = ax.text(0.99, 0.82, '', transform=ax.transAxes, fontsize=9,
+                       va='top', ha='right', family='monospace',
+                       bbox=dict(boxstyle="round,pad=0.5", alpha=0.85, facecolor='lightblue', edgecolor='black'))
+
 ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
 ax.set_xlabel("Ticks")
 ax.set_ylabel("Price")
@@ -1645,6 +1655,59 @@ def refresh_lines(current_price: Decimal):
     # Ändra färg på info-box baserat på mode
     pos_text.get_bbox_patch().set_facecolor(mode_manager.get_mode_color())
     pos_text.get_bbox_patch().set_alpha(0.7)
+    
+    # ========== BALANCE INFO BOX ==========
+    # Beräkna nuvarande balancer (inkl. unrealized position value)
+    current_usdt = float(paper.balances['USDT'])
+    current_btc = float(paper.balances['BTC'])
+    
+    # Om vi har en öppen position, inkludera unrealized value
+    if pos.side != "FLAT" and pos.qty > 0:
+        position_value_usdt = float(pos.qty * current_price)
+        if pos.side == "LONG":
+            # LONG: BTC value är locked i position
+            total_btc = current_btc + float(pos.qty)
+            total_usdt_value = current_usdt + position_value_usdt
+        else:  # SHORT
+            # SHORT: Vi har "skuld" i BTC, har USDT istället
+            total_btc = current_btc - float(pos.qty)
+            total_usdt_value = current_usdt + position_value_usdt
+    else:
+        total_btc = current_btc
+        total_usdt_value = current_usdt + (current_btc * float(current_price))
+    
+    # Beräkna total change vs initial
+    initial_total = float(INITIAL_TOTAL_USDT)
+    total_change_usdt = total_usdt_value - initial_total
+    total_change_pct = (total_change_usdt / initial_total * 100) if initial_total > 0 else 0
+    
+    # Formatera balance text (compact, monospace)
+    balance_info = (
+        f"╔═══ BALANCE ═══╗\n"
+        f"║ START         ║\n"
+        f"║ USDT: {float(INITIAL_USDT):>8.2f} ║\n"
+        f"║  BTC: {float(INITIAL_BTC):>8.5f} ║\n"
+        f"║ Total: {initial_total:>7.2f} ║\n"
+        f"╠═══════════════╣\n"
+        f"║ NOW           ║\n"
+        f"║ USDT: {current_usdt:>8.2f} ║\n"
+        f"║  BTC: {total_btc:>8.5f} ║\n"
+        f"║ Total: {total_usdt_value:>7.2f} ║\n"
+        f"╠═══════════════╣\n"
+        f"║ P&L: {total_change_usdt:>+8.2f} ║\n"
+        f"║     {total_change_pct:>+7.2f}% ║\n"
+        f"╚═══════════════╝"
+    )
+    
+    balance_text.set_text(balance_info)
+    
+    # Färg baserat på P&L
+    if total_change_pct > 0:
+        balance_text.get_bbox_patch().set_facecolor('lightgreen')
+    elif total_change_pct < 0:
+        balance_text.get_bbox_patch().set_facecolor('lightcoral')
+    else:
+        balance_text.get_bbox_patch().set_facecolor('lightgray')
 
     fig.canvas.draw()
     fig.canvas.flush_events()
@@ -1653,7 +1716,7 @@ def refresh_lines(current_price: Decimal):
 last_price_cache: Optional[Decimal] = None
 
 def main():
-    global last_price_cache, L
+    global last_price_cache, L, INITIAL_TOTAL_USDT
     tick = 0
     print("▶️  Startar trading loop... (Ctrl+C för att avsluta)")
     if _pause_resume_map:
@@ -1662,6 +1725,12 @@ def main():
         print(f"📊 Pause-resume default: {PAUSE_RESUME_PCT*100:.4f}%")
     if ADAPTIVE_L_ENABLED:
         print(f"🧠 Adaptive L: baseline={adaptive_L_calc.baseline_window}, trend={adaptive_L_calc.trend_window}, update var {ADAPTIVE_L_UPDATE_INTERVAL}:e tick")
+    print()
+    
+    # Beräkna initial total value (USDT + BTC värde) vid första price fetch
+    first_price = get_live_price(SYMBOL)
+    INITIAL_TOTAL_USDT = INITIAL_USDT + (INITIAL_BTC * first_price)
+    print(f"💰 Initial Balance: {float(INITIAL_USDT):.2f} USDT + {float(INITIAL_BTC):.5f} BTC = {float(INITIAL_TOTAL_USDT):.2f} USDT total")
     print()
 
     try:
