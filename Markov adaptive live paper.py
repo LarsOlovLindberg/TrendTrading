@@ -1499,7 +1499,8 @@ pos_text = ax.text(0.99, 0.97, '', transform=ax.transAxes, fontsize=10,
 # Balance info box (under pos_text, övre högra hörnet)
 balance_text = ax.text(0.99, 0.82, '', transform=ax.transAxes, fontsize=9,
                        va='top', ha='right', family='monospace',
-                       bbox=dict(boxstyle="round,pad=0.5", alpha=0.85, facecolor='lightblue', edgecolor='black'))
+                       bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
+                                edgecolor='black', linewidth=2))
 
 ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
 ax.set_xlabel("Ticks")
@@ -1683,22 +1684,22 @@ def refresh_lines(current_price: Decimal):
     total_change_usdt = total_usdt_value - initial_total
     total_change_pct = (total_change_usdt / initial_total * 100) if initial_total > 0 else 0
     
-    # Formatera balance text - alla innehållsrader EXAKT 15 tecken mellan | och |
+    # Formatera balance text - ingen ASCII-ram, matplotlib bbox hanterar ramen
     balance_info = (
-        f"+----- BALANCE -----+\n"
-        f"| {'START':<17} |\n"
-        f"| USDT: {float(INITIAL_USDT):>10.2f} |\n"
-        f"|  BTC: {float(INITIAL_BTC):>10.5f} |\n"
-        f"|  Tot: {initial_total:>10.2f} |\n"
-        f"+-------------------+\n"
-        f"| {'NOW':<17} |\n"
-        f"| USDT: {current_usdt:>10.2f} |\n"
-        f"|  BTC: {total_btc:>10.5f} |\n"
-        f"|  Tot: {total_usdt_value:>10.2f} |\n"
-        f"+-------------------+\n"
-        f"| P&L:  {total_change_usdt:>10.2f} |\n"
-        f"|      {total_change_pct:>10.2f}% |\n"
-        f"+-------------------+"
+        f"   BALANCE\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"START\n"
+        f"USDT: {float(INITIAL_USDT):>10.2f}\n"
+        f" BTC: {float(INITIAL_BTC):>10.5f}\n"
+        f" Tot: {initial_total:>10.2f}\n"
+        f"\n"
+        f"NOW\n"
+        f"USDT: {current_usdt:>10.2f}\n"
+        f" BTC: {total_btc:>10.5f}\n"
+        f" Tot: {total_usdt_value:>10.2f}\n"
+        f"━━━━━━━━━━━━━━━━━\n"
+        f"P&L:  {total_change_usdt:>10.2f}\n"
+        f"      {total_change_pct:>10.2f}%"
     )
     
     balance_text.set_text(balance_info)
