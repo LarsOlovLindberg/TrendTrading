@@ -1663,16 +1663,18 @@ def refresh_lines(current_price: Decimal):
     
     # Om vi har en öppen position, inkludera unrealized value
     if pos.side != "FLAT" and pos.qty > 0:
-        position_value_usdt = float(pos.qty * current_price)
         if pos.side == "LONG":
-            # LONG: BTC value är locked i position
+            # LONG: BTC är locked i position + det vi har kvar
             total_btc = current_btc + float(pos.qty)
-            total_usdt_value = current_usdt + position_value_usdt
+            # Total värde = USDT + (ALLT BTC * current price)
+            total_usdt_value = current_usdt + (total_btc * float(current_price))
         else:  # SHORT
-            # SHORT: Vi har "skuld" i BTC, har USDT istället
+            # SHORT: Vi har "skuld" i BTC
             total_btc = current_btc - float(pos.qty)
-            total_usdt_value = current_usdt + position_value_usdt
+            # Total värde = USDT + (netto BTC * current price)
+            total_usdt_value = current_usdt + (total_btc * float(current_price))
     else:
+        # FLAT: Räkna allt BTC till current price
         total_btc = current_btc
         total_usdt_value = current_usdt + (current_btc * float(current_price))
     
