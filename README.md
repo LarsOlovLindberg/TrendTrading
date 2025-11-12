@@ -5,10 +5,12 @@
 ## 🎯 Features
 
 ### Adaptive Mode Selection
-- **📈 BREAKOUT Mode**: Follows strong trends (trend strength > 0.58)
-- **🔄 MEAN REVERSION Mode**: Bets on price returning to average (trend strength < 0.42)
+- **📈 BREAKOUT Mode**: Follows strong trends (trend strength > 0.55)
+- **🔄 MEAN REVERSION Mode**: Bets on price returning to average (trend strength < 0.45)
+- **⚡ Real-time monitoring**: Checks trend EVERY tick (0.5s) for fast reaction
+- **🔄 Quick switch**: 5s cooldown between mode changes
 - Automatic switching based on 6 different market metrics
-- Hysteresis prevents rapid mode flapping
+- Hysteresis (0.45-0.55 buffer) prevents excessive flapping
 
 ### Advanced Trend Detection
 Uses 6 robust metrics for accurate trend identification:
@@ -103,10 +105,12 @@ mode_manager = StrategyModeManager(
 ```
 
 ### Tuning for Different Markets
-- **High volatility**: Increase hysteresis to 0.10, decrease threshold to 0.45
-- **Low volatility**: Decrease hysteresis to 0.06, increase threshold to 0.55
+- **High volatility**: Increase hysteresis to 0.08, increase cooldown to 10s
+- **Low volatility**: Decrease hysteresis to 0.03, decrease cooldown to 3s
 - **More BREAKOUT**: Lower threshold to 0.40
 - **More REVERSION**: Raise threshold to 0.60
+- **Faster switching**: Decrease hysteresis (default: 0.05) and cooldown (default: 5s)
+- **More stable**: Increase hysteresis and cooldown
 
 See `ADAPTIVE_CONFIG_GUIDE.md` for detailed tuning options.
 

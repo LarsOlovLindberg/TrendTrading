@@ -293,7 +293,7 @@ class StrategyModeManager:
         self.current_mode: Literal["BREAKOUT", "MEAN_REVERSION"] = "MEAN_REVERSION"
         self.mode_changes: list = []  # Historia av mode-byten
         self.switch_cooldown_until: float = 0.0
-        self.switch_cooldown_seconds: float = 30.0  # Vänta minst 30s mellan byten
+        self.switch_cooldown_seconds: float = 5.0  # ÄNDRAT: 30s → 5s för snabbare reaktion
     
     def update_mode(self, trend_strength: float) -> tuple[str, bool]:
         """
@@ -680,13 +680,13 @@ paper = PaperBroker(START_USDT, START_BTC)
 # eftersom detection är mer konservativ (mer pålitlig)
 trend_detector = TrendDetector(window_size=50)
 mode_manager = StrategyModeManager(
-    threshold=0.50,      # Sänkt från 0.6 - lättare att nå BREAKOUT
-    hysteresis=0.08      # Ökad från 0.05 - mer stabil, mindre flapping
+    threshold=0.50,      # Mittvärde - balanserad
+    hysteresis=0.05      # ÄNDRAT: 0.08 → 0.05 för snabbare byte (mindre buffer)
 )
 # Nu betyder:
-# trend < 0.42 (0.50 - 0.08) = MEAN_REVERSION
-# trend > 0.58 (0.50 + 0.08) = BREAKOUT  
-# 0.42-0.58 = Hysteresis zone (stannar i current mode)
+# trend < 0.45 (0.50 - 0.05) = MEAN_REVERSION
+# trend > 0.55 (0.50 + 0.05) = BREAKOUT  
+# 0.45-0.55 = Hysteresis zone (stannar i current mode) - MINDRE buffer = snabbare switch
 
 # Dynamisk positionsstorlek state
 position_size_state = {
@@ -1655,8 +1655,8 @@ def main():
             # Mata in pris till trend detector
             trend_detector.add_price(price)
             
-            # Uppdatera mode var 10:e tick (för att undvika överdriven beräkning)
-            if tick % 10 == 0:
+            # Uppdatera mode VARJE TICK för snabb reaktion (endast om vi har tillräckligt data)
+            if len(trend_detector.price_history) >= trend_detector.window_size:
                 trend_strength = trend_detector.calculate_trend_strength()
                 current_mode, mode_changed = mode_manager.update_mode(trend_strength)
                 

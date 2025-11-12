@@ -1,8 +1,40 @@
 # Markov Adaptive Strategy - Komplett Implementation & Analys
 
 **Skapad:** 2025-11-11  
-**Version:** 2.0 med Max Loss Protection  
+**Version:** 2.1 med Snabb Mode-Byte  
+**Senast uppdaterad:** 2025-11-12  
 **Författare:** AI-assisterad utveckling baserad på användarfeedback
+
+---
+
+## 📝 Changelog
+
+### Version 2.1 (2025-11-12) - Snabbare Reaktion
+**Ändringar:**
+- ⚡ **Trend check varje tick** (från var 10:e tick) - 10x snabbare detektion
+- 🔄 **Cooldown 5s** (från 30s) - mycket snabbare mode-byte
+- 📊 **Hysteresis 0.05** (från 0.08) - mindre buffer för snabbare switch
+- 🎯 **Threshold zones**: 0.45-0.55 (från 0.42-0.58)
+
+**Motivation:**  
+Användare noterade att strategin fastnade i fel mode för länge. Nu reagerar den 6x snabbare på marknadsförändringar.
+
+### Version 2.0 (2025-11-11) - Max Loss Protection
+**Ändringar:**
+- 🛡️ Max 1.5% unrealized loss protection
+- ⏰ Max 30 min position time limit
+- 🔄 Forced exit on mode switch
+- 🚫 Fixed infinite position loop (går FLAT istället för reopen)
+
+**Motivation:**  
+Position höll i 15+ timmar med -2.83% loss. Alla fyra säkerhetsgränserna implementerades.
+
+### Version 1.0 (2025-11-10) - Adaptive Hybrid
+**Initial release:**
+- 6-metrik trend detection
+- Automatisk BREAKOUT/REVERSION switching
+- Symmetrisk scaling system
+- Visual mode indicators
 
 ---
 
@@ -299,12 +331,12 @@ trend_strength = (
 )
 ```
 
-### Threshold-mapping
+### Threshold-mapping (UPPDATERAD v2.1 - Snabbare reaktion)
 ```
 0.00-0.20: STARKT RANGING    → MEAN_REVERSION
-0.20-0.42: RANGING           → MEAN_REVERSION
-0.42-0.58: HYSTERESIS ZONE   → Behåll current mode
-0.58-0.80: TRENDING          → BREAKOUT
+0.20-0.45: RANGING           → MEAN_REVERSION
+0.45-0.55: HYSTERESIS ZONE   → Behåll current mode (MINDRE buffer = snabbare byte)
+0.55-0.80: TRENDING          → BREAKOUT
 0.80-1.00: STARKT TRENDING   → BREAKOUT
 ```
 
@@ -312,21 +344,27 @@ trend_strength = (
 
 ## ⚙️ Mode Management
 
-### StrategyModeManager
+### StrategyModeManager (v2.1 - Förbättrad responsivitet)
 
 **Threshold Logic:**
 ```python
 threshold = 0.50      # Mittvärde
-hysteresis = 0.08     # ±0.08 buffer
+hysteresis = 0.05     # ±0.05 buffer (ÄNDRAT från 0.08 - snabbare byte)
+cooldown = 5.0        # 5 sekunder (ÄNDRAT från 30s - mycket snabbare)
 
 # För att byta till BREAKOUT:
-if current_mode == "MEAN_REVERSION" and trend_strength >= 0.58:
+if current_mode == "MEAN_REVERSION" and trend_strength >= 0.55:
     switch_to_BREAKOUT()
 
 # För att byta till MEAN_REVERSION:
-if current_mode == "BREAKOUT" and trend_strength < 0.42:
+if current_mode == "BREAKOUT" and trend_strength < 0.45:
     switch_to_MEAN_REVERSION()
 ```
+
+**Kontroll Varje Tick (NYTT!):**
+- FÖRE: Kollade trend var 10:e tick (5 sekunders intervall)
+- NU: Kollar trend VARJE tick (0.5 sekunder)
+- Resultat: 10x snabbare detektion av marknadsförändringar
 
 **Hysteresis Förklarad:**
 ```
@@ -335,18 +373,20 @@ Trend 0.49 → REVERSION
 Trend 0.51 → BREAKOUT  ⚠️ Flippar fram och tillbaka!
 Trend 0.49 → REVERSION
 
-Med hysteresis (±0.08):
+Med hysteresis (±0.05) - NY mindre buffer:
 Trend 0.49 → REVERSION (start)
 Trend 0.51 → REVERSION (stannar, inom buffer)
-Trend 0.57 → REVERSION (stannar fortfarande)
-Trend 0.59 → BREAKOUT ✅ (över 0.58, bytt nu)
-Trend 0.57 → BREAKOUT (stannar, inom buffer)
-Trend 0.41 → MEAN_REVERSION ✅ (under 0.42, bytt nu)
+Trend 0.54 → REVERSION (stannar fortfarande)
+Trend 0.56 → BREAKOUT ✅ (över 0.55, bytt nu) - Snabbare byte än förut!
+Trend 0.54 → BREAKOUT (stannar, inom buffer)
+Trend 0.44 → MEAN_REVERSION ✅ (under 0.45, bytt nu)
 ```
 
-**Cooldown:**
-- Min 30 sekunder mellan mode-byten
-- Förhindrar överdriven switching vid volatila märkningar
+**Cooldown (UPPDATERAT):**
+- Min 5 sekunder mellan mode-byten (ÄNDRAT från 30s)
+- Mycket snabbare reaktion på marknadsförändringar
+- Fortfarande tillräckligt för att förhindra överdriven flapping
+- Kombinerat med hysteresis ger det balanserad responsivitet
 
 ### Mode-Specifik Logik
 
