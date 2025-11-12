@@ -50,6 +50,7 @@ except ImportError as e:
 
 # (Valfritt men fint): realtids-graf
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from collections import deque
 
 # Adaptive L-module (DIN IDÉ!)
@@ -1495,7 +1496,13 @@ def maybe_enter(price: Decimal):
 
 # ----------------------- Grafik ----------------------------------------------
 plt.ion()
-fig, ax = plt.subplots(figsize=(12, 7))
+# Skapa figur med GridSpec för att ha graf + info-panel
+fig = plt.figure(figsize=(16, 7))
+gs = fig.add_gridspec(1, 2, width_ratios=[5, 1], wspace=0.02)
+ax = fig.add_subplot(gs[0])  # Huvudgraf (vänster)
+ax_info = fig.add_subplot(gs[1])  # Info-panel (höger)
+ax_info.axis('off')  # Ingen axel för info-panel
+
 price_line, = ax.plot([], [], lw=1.5, color='blue')
 L_line,     = ax.plot([], [], linestyle="--", lw=2.0, color='orange')
 TP_line,    = ax.plot([], [], linestyle=":", lw=2.5, color='green')
@@ -1519,17 +1526,18 @@ pos_text = ax.text(0.99, 0.97, '', transform=ax.transAxes, fontsize=10,
                    va='top', ha='right', fontweight='bold',
                    bbox=dict(boxstyle="round,pad=0.5", alpha=0.8, facecolor='lightyellow'))
 
-# Balance info box (under pos_text, övre högra hörnet)
-balance_text = ax.text(0.99, 0.82, '', transform=ax.transAxes, fontsize=9,
-                       va='top', ha='right', family='monospace',
-                       bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
-                                edgecolor='black', linewidth=2))
-
-# Exit history box (under balance_text)
-exit_history_text = ax.text(0.99, 0.50, '', transform=ax.transAxes, fontsize=8,
-                            va='top', ha='right', family='monospace',
-                            bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightyellow',
+# INFO PANEL (höger sida) - använd ax_info istället för ax
+# Balance info box (överst i info-panel)
+balance_text = ax_info.text(0.5, 0.98, '', transform=ax_info.transAxes, fontsize=9,
+                            va='top', ha='center', family='monospace',
+                            bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
                                      edgecolor='black', linewidth=2))
+
+# Exit history box (under balance box i info-panel)
+exit_history_text = ax_info.text(0.5, 0.58, '', transform=ax_info.transAxes, fontsize=8,
+                                 va='top', ha='center', family='monospace',
+                                 bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightyellow',
+                                          edgecolor='black', linewidth=2))
 
 ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
 ax.set_xlabel("Ticks")
@@ -1714,22 +1722,22 @@ def refresh_lines(current_price: Decimal):
     total_change_usdt = total_usdt_value - initial_total
     total_change_pct = (total_change_usdt / initial_total * 100) if initial_total > 0 else 0
     
-    # Formatera balance text - ingen ASCII-ram, matplotlib bbox hanterar ramen
+    # Formatera balance text - centrerad layout för info-panel
     balance_info = (
-        f"   BALANCE\n"
-        f"━━━━━━━━━━━━━━━━━\n"
-        f"START\n"
+        f"     BALANCE\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"  START\n"
         f"USDT: {float(INITIAL_USDT):>10.2f}\n"
         f" BTC: {float(INITIAL_BTC):>10.5f}\n"
         f" Tot: {initial_total:>10.2f}\n"
         f"\n"
-        f"NOW\n"
+        f"  NOW\n"
         f"USDT: {current_usdt:>10.2f}\n"
         f" BTC: {total_btc:>10.5f}\n"
         f" Tot: {total_usdt_value:>10.2f}\n"
-        f"━━━━━━━━━━━━━━━━━\n"
-        f"P&L:  {total_change_usdt:>10.2f}\n"
-        f"      {total_change_pct:>10.2f}%"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"P&L: {total_change_usdt:>11.2f}\n"
+        f"     {total_change_pct:>11.2f}%"
     )
     
     balance_text.set_text(balance_info)
@@ -1745,7 +1753,7 @@ def refresh_lines(current_price: Decimal):
     # ========== EXIT HISTORY BOX ==========
     # Visa senaste 10 exits i scrollande lista (nyaste överst)
     if exit_history:
-        history_lines = ["  RECENT EXITS", "━━━━━━━━━━━━━━━━"]
+        history_lines = ["   RECENT EXITS", "━━━━━━━━━━━━━━━━━━━"]
         for exit_data in reversed(exit_history):  # Nyaste först
             side_symbol = "🟢L" if exit_data['side'] == "LONG" else "🔴S"
             pnl = exit_data['pnl_pct']
@@ -1760,11 +1768,11 @@ def refresh_lines(current_price: Decimal):
             else:
                 result = "✗"
             
-            history_lines.append(f"{side_symbol} {result}{pnl:>6.2f}% @{price:.0f}")
+            history_lines.append(f" {side_symbol} {result}{pnl:>6.2f}% @{price:.0f}")
         
         exit_history_info = "\n".join(history_lines)
     else:
-        exit_history_info = "  RECENT EXITS\n━━━━━━━━━━━━━━━━\n   No exits yet"
+        exit_history_info = "   RECENT EXITS\n━━━━━━━━━━━━━━━━━━━\n    No exits yet"
     
     exit_history_text.set_text(exit_history_info)
 
