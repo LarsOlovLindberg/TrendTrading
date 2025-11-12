@@ -1075,14 +1075,34 @@ def do_exit(side: str, exit_price: Decimal, state_tag: str):
     
     # Lägg till exit-markering på grafen (kompakt)
     # Mörkgrön för vinst (LW/SW), mörkröd för förlust (LB/SB)
+    # Orange för mode-switch exit
     is_win = state_tag in ("LW", "SW")
+    is_mode_switch = state_tag == "MODE_SWITCH"
+    
+    if is_mode_switch:
+        exit_color = 'black'
+        exit_bgcolor = 'orange'
+        exit_text = f'🔄{float(pnl_pct):.2f}%'
+    else:
+        exit_color = 'white'
+        exit_bgcolor = 'darkgreen' if is_win else 'darkred'
+        exit_text = f'{"✓" if is_win else "✗"}{float(pnl_pct):.2f}%'
+    
     trade_annotations.append({
         'abs_tick': tick_offset + len(py) - 1,  # Absolut tick-nummer
         'y': float(exit_price),
-        'text': f'{"✓" if is_win else "✗"}{float(pnl_pct):.2f}%',  # En rad
-        'color': 'white',
-        'bgcolor': 'darkgreen' if is_win else 'darkred',  # ÄNDRAT: mörkgrön för vinst
+        'text': exit_text,
+        'color': exit_color,
+        'bgcolor': exit_bgcolor,
         'size': 6
+    })
+    
+    # Lägg till i exit history för scrollande lista
+    exit_history.append({
+        'side': side,
+        'pnl_pct': float(pnl_pct),
+        'reason': state_tag,
+        'price': float(exit_price)
     })
 
     exit_epoch = time.time()
@@ -1488,6 +1508,9 @@ lower_band_line, = ax.plot([], [], linestyle="--", lw=0.8, color='gray', alpha=0
 # Markeringar för entry/scale in/out (textrutor istället för cirklar)
 trade_annotations = []  # Lista med alla text-annotations
 
+# Exit history för scrollande lista (max 10 senaste)
+exit_history = deque(maxlen=10)  # Varje item: {'side': 'LONG/SHORT', 'pnl_pct': float, 'reason': 'LW/LB/...', 'price': float}
+
 # Text-labels som följer linjerna (skapas dynamiskt)
 L_text = ax.text(0, 0, '', fontsize=9, color='orange', fontweight='bold', va='center')
 TP_text = ax.text(0, 0, '', fontsize=9, color='green', fontweight='bold', va='center')
@@ -1501,6 +1524,12 @@ balance_text = ax.text(0.99, 0.82, '', transform=ax.transAxes, fontsize=9,
                        va='top', ha='right', family='monospace',
                        bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
                                 edgecolor='black', linewidth=2))
+
+# Exit history box (under balance_text)
+exit_history_text = ax.text(0.99, 0.50, '', transform=ax.transAxes, fontsize=8,
+                            va='top', ha='right', family='monospace',
+                            bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightyellow',
+                                     edgecolor='black', linewidth=2))
 
 ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
 ax.set_xlabel("Ticks")
@@ -1665,15 +1694,16 @@ def refresh_lines(current_price: Decimal):
     # Om vi har en öppen position, inkludera unrealized value
     if pos.side != "FLAT" and pos.qty > 0:
         if pos.side == "LONG":
-            # LONG: BTC är locked i position + det vi har kvar
+            # LONG: Vi äger BTC (current_btc + locked i position)
             total_btc = current_btc + float(pos.qty)
             # Total värde = USDT + (ALLT BTC * current price)
             total_usdt_value = current_usdt + (total_btc * float(current_price))
         else:  # SHORT
-            # SHORT: Vi har "skuld" i BTC
-            total_btc = current_btc - float(pos.qty)
-            # Total värde = USDT + (netto BTC * current price)
-            total_usdt_value = current_usdt + (total_btc * float(current_price))
+            # SHORT: Vi har sålt BTC på kredit, unrealized P&L är diff mellan entry och nu
+            # Total value = USDT + BTC value + unrealized P&L from SHORT
+            unrealized_pnl_usdt = float(pos.qty) * (float(pos.entry) - float(current_price))
+            total_btc = current_btc  # Visa faktisk BTC balance
+            total_usdt_value = current_usdt + unrealized_pnl_usdt + (current_btc * float(current_price))
     else:
         # FLAT: Räkna allt BTC till current price
         total_btc = current_btc
@@ -1711,6 +1741,32 @@ def refresh_lines(current_price: Decimal):
         balance_text.get_bbox_patch().set_facecolor('lightcoral')
     else:
         balance_text.get_bbox_patch().set_facecolor('lightgray')
+    
+    # ========== EXIT HISTORY BOX ==========
+    # Visa senaste 10 exits i scrollande lista (nyaste överst)
+    if exit_history:
+        history_lines = ["  RECENT EXITS", "━━━━━━━━━━━━━━━━"]
+        for exit_data in reversed(exit_history):  # Nyaste först
+            side_symbol = "🟢L" if exit_data['side'] == "LONG" else "🔴S"
+            pnl = exit_data['pnl_pct']
+            reason = exit_data['reason']
+            price = exit_data['price']
+            
+            # Färg-emoji baserat på resultat
+            if reason in ("LW", "SW"):
+                result = "✓"
+            elif reason == "MODE_SWITCH":
+                result = "🔄"
+            else:
+                result = "✗"
+            
+            history_lines.append(f"{side_symbol} {result}{pnl:>6.2f}% @{price:.0f}")
+        
+        exit_history_info = "\n".join(history_lines)
+    else:
+        exit_history_info = "  RECENT EXITS\n━━━━━━━━━━━━━━━━\n   No exits yet"
+    
+    exit_history_text.set_text(exit_history_info)
 
     fig.canvas.draw()
     fig.canvas.flush_events()
@@ -1767,23 +1823,13 @@ def main():
                 
                 # Visualisera mode-byten på grafen
                 if mode_changed:
-                    mode_color = 'orange' if current_mode == "BREAKOUT" else 'cyan'
-                    mode_text = "📈BRK" if current_mode == "BREAKOUT" else "🔄REV"
-                    trade_annotations.append({
-                        'abs_tick': tick_offset + len(py) - 1,
-                        'y': float(price),
-                        'text': mode_text,
-                        'color': 'black',
-                        'bgcolor': mode_color,
-                        'size': 7
-                    })
-                    
-                    # TVINGAD EXIT vid mode-byte (om aktiverat)
+                    # TVINGAD EXIT vid mode-byte (om aktiverat) - GÖR DETTA FÖRST!
                     if FORCE_EXIT_ON_MODE_SWITCH and pos.side != "FLAT":
                         unrealized_pnl = pos.unrealized_pnl_pct(price)
                         print(f"\n{'='*70}")
-                        print(f"🔄 MODE SWITCH EXIT: Closing {pos.side} position")
-                        print(f"   Reason: Strategy mode changed to {current_mode}")
+                        print(f"🔄 MODE SWITCH EXIT: Closing {pos.side} position BEFORE mode change")
+                        print(f"   Old mode: {mode_manager.mode_changes[-1]['from_mode']}")
+                        print(f"   New mode: {current_mode}")
                         print(f"   Unrealized PnL: {float(unrealized_pnl):.3f}%")
                         print(f"{'='*70}\n")
                         
@@ -1797,6 +1843,18 @@ def main():
                         do_exit(pos.side, price, "MODE_SWITCH")
                         pos.flat()
                         L = price
+                    
+                    # Sedan visualisera mode-bytet
+                    mode_color = 'orange' if current_mode == "BREAKOUT" else 'cyan'
+                    mode_text = "📈BRK" if current_mode == "BREAKOUT" else "🔄REV"
+                    trade_annotations.append({
+                        'abs_tick': tick_offset + len(py) - 1,
+                        'y': float(price),
+                        'text': mode_text,
+                        'color': 'black',
+                        'bgcolor': mode_color,
+                        'size': 7
+                    })
                     
                     # Visa VARFÖR mode bytte
                     metrics = trend_detector.get_detailed_metrics()
