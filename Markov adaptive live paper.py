@@ -1683,20 +1683,20 @@ def refresh_lines(current_price: Decimal):
     
     # Formatera balance text - alla innehållsrader EXAKT 15 tecken mellan | och |
     balance_info = (
-        f"+--- BALANCE ---+\n"
-        f"| {'START':<13} |\n"
-        f"| USDT: {float(INITIAL_USDT):>7.2f} |\n"
-        f"|  BTC: {float(INITIAL_BTC):>7.5f} |\n"
-        f"| Tot: {initial_total:>8.2f} |\n"
-        f"+---------------+\n"
-        f"| {'NOW':<13} |\n"
-        f"| USDT: {current_usdt:>7.2f} |\n"
-        f"|  BTC: {total_btc:>7.5f} |\n"
-        f"| Tot: {total_usdt_value:>8.2f} |\n"
-        f"+---------------+\n"
-        f"| P&L: {total_change_usdt:>8.2f} |\n"
-        f"|     {total_change_pct:>8.2f}% |\n"
-        f"+---------------+"
+        f"+----- BALANCE -----+\n"
+        f"| {'START':<17} |\n"
+        f"| USDT: {float(INITIAL_USDT):>10.2f} |\n"
+        f"|  BTC: {float(INITIAL_BTC):>10.5f} |\n"
+        f"|  Tot: {initial_total:>10.2f} |\n"
+        f"+-------------------+\n"
+        f"| {'NOW':<17} |\n"
+        f"| USDT: {current_usdt:>10.2f} |\n"
+        f"|  BTC: {total_btc:>10.5f} |\n"
+        f"|  Tot: {total_usdt_value:>10.2f} |\n"
+        f"+-------------------+\n"
+        f"| P&L:  {total_change_usdt:>10.2f} |\n"
+        f"|      {total_change_pct:>10.2f}% |\n"
+        f"+-------------------+"
     )
     
     balance_text.set_text(balance_info)
