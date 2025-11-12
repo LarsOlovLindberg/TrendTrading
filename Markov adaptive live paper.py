@@ -1440,8 +1440,33 @@ def maybe_enter(price: Decimal):
                 print(f"🎯 START [{current_mode}]: Priset under L ({L:.2f}) → LONG (mean reversion)")
             return
 
-    # Efter START_MODE: Nya positioner öppnas automatiskt i maybe_exit vid L-korsning
-    # (ingen kod behövs här för drift)
+    # Efter START_MODE: Kontrollera L-korsning för nya entries
+    # (ÄNDRAT v2.1: Måste ha explicit entry-logik eftersom vi tog bort auto-reopen)
+    
+    if pos.side == "FLAT":
+        # Kolla om priset korsar L för att öppna ny position
+        current_mode = mode_manager.current_mode
+        
+        if price > L:
+            # Priset ÖVER L
+            if current_mode == "BREAKOUT":
+                # BREAKOUT: Följ upptrend → LONG
+                enter_long(price)
+                print(f"📈 ENTRY [{current_mode}]: Price broke above L ({L:.2f}) → LONG")
+            else:  # MEAN_REVERSION
+                # REVERSION: Satsa på fall → SHORT
+                enter_short(price)
+                print(f"🔄 ENTRY [{current_mode}]: Price above L ({L:.2f}) → SHORT (bet on reversion)")
+        elif price < L:
+            # Priset UNDER L
+            if current_mode == "BREAKOUT":
+                # BREAKOUT: Följ nedtrend → SHORT
+                enter_short(price)
+                print(f"📉 ENTRY [{current_mode}]: Price broke below L ({L:.2f}) → SHORT")
+            else:  # MEAN_REVERSION
+                # REVERSION: Satsa på stigning → LONG
+                enter_long(price)
+                print(f"🔄 ENTRY [{current_mode}]: Price below L ({L:.2f}) → LONG (bet on reversion)")
 
 # ----------------------- Grafik ----------------------------------------------
 plt.ion()

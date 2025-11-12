@@ -9,6 +9,14 @@
 
 ## 📝 Changelog
 
+### Version 2.1.1 (2025-11-12) - Hotfix: Re-entry Logic
+**Bugfix:**
+- 🔧 **Fixed FLAT lock**: Strategin stannade FLAT efter exit och öppnade aldrig nya positioner
+- ✅ **Added re-entry logic**: Kollar L-korsningar när FLAT för att öppna nya trades
+
+**Motivation:**  
+Efter att vi tog bort auto-reopen (v2.0) glömde vi lägga till explicit entry-logik. Strategin gick FLAT och stannade där!
+
 ### Version 2.1 (2025-11-12) - Snabbare Reaktion
 **Ändringar:**
 - ⚡ **Trend check varje tick** (från var 10:e tick) - 10x snabbare detektion
