@@ -23,9 +23,9 @@
   "symbol": "BTCUSDT",
   "order_quantity": 0.001,
   
-  "_comment_risk": "=== RISK MANAGEMENT (IMPROVED) ===",
-  "take_profit_pct": 0.025,
-  "_comment_tp": "2.5% TP - unchanged, good target",
+  "_comment_risk": "=== RISK MANAGEMENT (DATA-DRIVEN) ===",
+  "take_profit_pct": 0.007,
+  "_comment_tp": "0.7% TP - OPTIMIZED from data analysis (95th percentile move, best return -3.98%)",
   
   "max_loss_pct": 0.01,
   "_comment_max_loss": "REDUCED from 1.5% to 1% - tighter risk control",
