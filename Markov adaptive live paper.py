@@ -1319,10 +1319,26 @@ def maybe_exit(price: Decimal):
     
     # MINIMUM HOLD TIME: Låt positionen utvecklas och scala innan exit
     # (Max loss protection körs INNAN maybe_exit i main loop, så den kan fortfarande exit direkt)
+    # UNDANTAG 1: Om positionen är nästan helt utfasad (< 10% kvar), exit direkt
+    # UNDANTAG 2: Om TP nådd (meningsfull vinst), exit direkt
     if pos.side != "FLAT" and pos.entry_time > 0:
         time_in_position = time.time() - pos.entry_time
-        if time_in_position < MIN_HOLD_TIME_SEC:
-            # Håll kvar positionen tills minimum hold time uppnåtts
+        position_pct = (pos.qty / pos.initial_qty * 100) if pos.initial_qty > 0 else 100
+        
+        # Beräkna aktuell P&L
+        unrealized_pnl_pct = pos.unrealized_pnl_pct(price)
+        tp_target_pct = float(TP_PCT * 100)  # 0.7% = 0.007 * 100
+        
+        # Om position är nästan helt utfasad (< 10%), tillåt exit trots hold time
+        if position_pct < 10:
+            if time_in_position < MIN_HOLD_TIME_SEC:
+                print(f"⚠️ Position utfasad ({position_pct:.0f}% kvar) - tillåter exit trots {time_in_position:.0f}s < {MIN_HOLD_TIME_SEC}s")
+        # Om TP nådd (meningsfull vinst), tillåt exit trots hold time
+        elif unrealized_pnl_pct >= tp_target_pct:
+            if time_in_position < MIN_HOLD_TIME_SEC:
+                print(f"✅ TP nådd ({unrealized_pnl_pct:.2f}%) - tillåter exit trots {time_in_position:.0f}s < {MIN_HOLD_TIME_SEC}s")
+        elif time_in_position < MIN_HOLD_TIME_SEC:
+            # Normal case: håll kvar positionen tills minimum hold time uppnåtts
             # Detta ger scaling-strategin tid att jobba
             return
     
