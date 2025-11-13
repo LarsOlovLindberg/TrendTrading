@@ -1650,17 +1650,28 @@ def refresh_lines(current_price: Decimal):
     xs = list(range(len(py)))
     price_line.set_data(xs, list(py))
 
-    # Visa ALLTID L-linjen (entry-trigger)
+    # Visa ALLTID L-linjen (entry-trigger och stop loss)
     L_val = float(L)
     L_line.set_data(xs, [L_val]*len(xs))
     L_line.set_visible(True)
 
-    # TP-linje visas inte separat - TP = L-korsning (exit sker där)
+    # TP-linje visas när position är öppen
     if not START_MODE and pos.entry is not None and pos.side != "FLAT":
-        # Dölj TP och BE (bara L-linjen behövs)
-        TP_line.set_visible(False)
+        # Beräkna TP-nivå baserat på entry
+        tp_target = float(pos.avg_entry_price() * (Decimal("1") + TP_PCT))
+        
+        if pos.side == "LONG":
+            # LONG: TP ovanför L-linjen (priset går uppåt)
+            TP_line.set_data(xs, [tp_target]*len(xs))
+            TP_line.set_visible(True)
+        else:  # SHORT
+            # SHORT: TP under L-linjen (priset går nedåt)
+            TP_line.set_data(xs, [tp_target]*len(xs))
+            TP_line.set_visible(True)
+        
+        # Dölj BE (används ej i breakout)
         BE_line.set_visible(False)
-        # dölj startband
+        # Dölj startband
         upper_band_line.set_visible(False)
         lower_band_line.set_visible(False)
     else:
@@ -1682,7 +1693,11 @@ def refresh_lines(current_price: Decimal):
         lo = min(min(py), float(L_lower))
         hi = max(max(py), float(L_upper))
         
-        # L-linjen är alltid inkluderad i zoom (den är alltid synlig)
+        # Inkludera TP-linjen i zoom om position är öppen
+        if not START_MODE and pos.entry is not None and pos.side != "FLAT":
+            tp_target = float(pos.avg_entry_price() * (Decimal("1") + TP_PCT))
+            lo = min(lo, tp_target, L_val)
+            hi = max(hi, tp_target, L_val)
         
         rng = max(1.0, (hi - lo) * 0.15)
         ax.set_ylim(lo - rng*0.2, hi + rng*0.2)
@@ -1692,13 +1707,19 @@ def refresh_lines(current_price: Decimal):
     if len(xs) > 0:
         x_pos = len(xs) - 1
         
-        # L-linje label (alltid synlig)
+        # L-linje label (alltid synlig - entry & stop)
         L_text.set_position((x_pos, L_val))
         L_text.set_text(f' L: {L_val:.2f}')
         L_text.set_visible(True)
         
-        # Ingen separat TP label (TP = L-korsning)
-        TP_text.set_visible(False)
+        # TP label (när position är öppen)
+        if not START_MODE and pos.entry is not None and pos.side != "FLAT":
+            tp_target = float(pos.avg_entry_price() * (Decimal("1") + TP_PCT))
+            TP_text.set_position((x_pos, tp_target))
+            TP_text.set_text(f' TP: {tp_target:.2f}')
+            TP_text.set_visible(True)
+        else:
+            TP_text.set_visible(False)
     
     # Rensa gamla annotations från grafen
     global drawn_annotations
