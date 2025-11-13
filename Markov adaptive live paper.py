@@ -370,7 +370,8 @@ ORDER_QTY      = Decimal(str(cfg.get("order_qty", 0.001))).quantize(Decimal("0.0
 # Strategiparametrar
 TP_PCT         = Decimal(str(cfg.get("tp_pct", 0.0010)))       # 0.10%
 TAKER_FEE_PCT  = Decimal(str(cfg.get("taker_fee_pct", 0.0004)))# 0.04%
-POLL_SEC       = float(cfg.get("poll_sec", 0.5))               # pollingintervall sek
+POLL_SEC       = float(cfg.get("poll_sec", 0.5))               # pollingintervall sek för trading-beslut
+GRAPH_UPDATE_SEC = float(cfg.get("graph_update_sec", 0.5))     # grafuppdatering (kan vara snabbare)
 
 # Finjustering anti-fladder / rearm
 REARM_GAP_PCT  = Decimal(str(cfg.get("rearm_gap_pct", 0.0003)))    # krav för ”nytt brott” efter re-arm
@@ -757,7 +758,7 @@ L = START_PRICE  # L uppdateras till entry så fort bandet bryts
 print(f"🚀 Startar Markov ADAPTIVE Strategy (paper mode={'ON' if ORDER_TEST else 'OFF'})")
 print(f"🧠 Intelligent mode: BREAKOUT (trend ≥0.65) ↔️ MEAN_REVERSION (trend <0.55)")
 print(f"🔧 Startpris={START_PRICE:.2f}  Startband: [{L_lower:.2f}, {L_upper:.2f}]  för {SYMBOL}")
-print(f"📡 Polling: {POLL_SEC}s  TP={TP_PCT*100:.3f}%  Fee≈{TAKER_FEE_PCT*100:.3f}%  RearmGap={REARM_GAP_PCT*100:.3f}%")
+print(f"📡 Trading: {POLL_SEC}s | Graf: {GRAPH_UPDATE_SEC}s | TP={TP_PCT*100:.3f}% | Fee≈{TAKER_FEE_PCT*100:.3f}%")
 print(f"🧊 Cooldown (TP): {COOLDOWN_SEC:.1f}s  | TP-chain max: {TP_CHAIN_MAX}")
 if VOL_FILTER:
     print(f"🌬️ Vol-filter aktivt: period={VOL_PERIOD} span≥{MIN_VOL*100:.3f}%")
@@ -1865,7 +1866,10 @@ last_price_cache: Optional[Decimal] = None
 def main():
     global last_price_cache, L, INITIAL_TOTAL_USDT
     tick = 0
+    last_trade_check = time.time()  # Timer för trading-beslut
+    
     print("▶️  Startar trading loop... (Ctrl+C för att avsluta)")
+    print(f"📊 Graf uppdateras var {GRAPH_UPDATE_SEC}s, trading-beslut var {POLL_SEC}s")
     if _pause_resume_map:
         print(f"📊 Pause-resume-mappning aktiverad: lookahead={_lookahead_key} → {PAUSE_RESUME_PCT*100:.4f}%")
     else:
@@ -1998,43 +2002,46 @@ def main():
 
             pos.update_extremes(price)
 
-            # Progressiv scaling (om position finns)
-            # VIKTIGT: Kör bara EN av dem per tick för att undvika samtidig scale in/out
-            if pos.side != "FLAT":
-                # Bestäm vilken riktning priset rör sig
-                if pos.side == "LONG":
-                    # LONG: price går NER = scale OUT, price går UPP = scale IN
-                    if price < pos.entry:
-                        check_scale_out(price)  # Price moving away from L (down)
-                    elif price > pos.low:  # Only scale in if recovering from low
-                        check_scale_in(price)   # Price recovering toward L
-                else:  # SHORT
-                    # SHORT: price går UPP = scale OUT, price går NER = scale IN
-                    if price > pos.entry:
-                        check_scale_out(price)  # Price moving away from L (up)
-                    elif price < pos.high:  # Only scale in if recovering from high
-                        check_scale_in(price)   # Price recovering toward L
+            # ========== TRADING LOGIC (körs endast var POLL_SEC) ==========
+            current_time = time.time()
+            if current_time - last_trade_check >= POLL_SEC:
+                last_trade_check = current_time
+                
+                # Progressiv scaling (om position finns)
+                # VIKTIGT: Kör bara EN av dem per tick för att undvika samtidig scale in/out
+                if pos.side != "FLAT":
+                    # Bestäm vilken riktning priset rör sig
+                    if pos.side == "LONG":
+                        # LONG: price går NER = scale OUT, price går UPP = scale IN
+                        if price < pos.entry:
+                            check_scale_out(price)  # Price moving away from L (down)
+                        elif price > pos.low:  # Only scale in if recovering from low
+                            check_scale_in(price)   # Price recovering toward L
+                    else:  # SHORT
+                        # SHORT: price går UPP = scale OUT, price går NER = scale IN
+                        if price > pos.entry:
+                            check_scale_out(price)  # Price moving away from L (up)
+                        elif price < pos.high:  # Only scale in if recovering from high
+                            check_scale_in(price)   # Price recovering toward L
 
-            # 🛡️ KRITISK: Kolla max loss protection FÖRST (innan normal exit)
-            if pos.side != "FLAT":
-                if check_max_loss_protection(price):
-                    # Position stängdes av safety - skippa normal exit/entry
-                    refresh_lines(price)
-                    tick += 1
-                    time.sleep(POLL_SEC)
-                    continue
+                # 🛡️ KRITISK: Kolla max loss protection FÖRST (innan normal exit)
+                if pos.side != "FLAT":
+                    if check_max_loss_protection(price):
+                        # Position stängdes av safety - skippa normal exit/entry
+                        refresh_lines(price)
+                        tick += 1
+                        time.sleep(GRAPH_UPDATE_SEC)
+                        continue
 
-            # EXIT → ENTRY (kedja/vändning) sker inne i do_exit/maybe_exit
-            maybe_exit(price)
-            maybe_enter(price)
+                # EXIT → ENTRY (kedja/vändning) sker inne i do_exit/maybe_exit
+                maybe_exit(price)
+                maybe_enter(price)
 
-            # Uppdatera graf VARJE tick när i position, annars var 3:e tick
-            chart_interval = 1 if pos.side != "FLAT" else 3
-            if tick % chart_interval == 0:
-                refresh_lines(price)
+            # ========== GRAF UPPDATERING (körs varje loop) ==========
+            refresh_lines(price)
 
             tick += 1
-            time.sleep(POLL_SEC)
+            time.sleep(GRAPH_UPDATE_SEC)  # Graf uppdateras snabbt (0.5s)
 
     except KeyboardInterrupt:
         change, pct = paper.session_pnl()
