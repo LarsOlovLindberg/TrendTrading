@@ -1,30 +1,33 @@
 # -*- coding: utf-8 -*-
 """
-Markov ADAPTIVE – LIVE PRICES + PAPER TRADING (INTELLIGENT HYBRID)
--------------------------------------------------------------------
-ADAPTIV STRATEGI: Byter automatiskt mellan BREAKOUT och MEAN REVERSION!
+Markov BREAKOUT – LIVE PRICES + PAPER TRADING (v2.9.4)
+--------------------------------------------------------
+BREAKOUT-ONLY STRATEGI: Enkel och kraftfull!
 
-INTELLIGENT MODE SELECTION:
-- Analyserar trendstyrka i realtid (0.0-1.0 scale)
-- Trendstyrka < 0.55: MEAN_REVERSION mode (satsa på återgång till L)
-- Trendstyrka > 0.65: BREAKOUT mode (följ trenden)
-- Hysterese (±0.05) förhindrar flapping mellan modes
+v2.9.4 FÖRENKLING:
+- Endast BREAKOUT mode (ingen mean reversion)
+- Fast L-linje (uppdateras bara vid exit)
+- Progressive scaling som säkerhet
+- Tydliga brytpunkter
 
-BREAKOUT MODE (stark trend):
-- Entry: LONG vid upp-brott, SHORT vid ner-brott (följ momentum)
-- Exit: TP vid fortsatt rörelse, Stop vid återgång till L
-- L följer entry-priset (trailing stop)
+BREAKOUT STRATEGI:
+- Entry: LONG vid brott ÖVER L, SHORT vid brott UNDER L
+- Exit: TP vid fortsatt rörelse, Stop vid återgång till L, eller Max Loss
+- L = FAST nivå (flyttas till exit-priset vid varje exit)
+- Scaling: IN vid vinst, OUT vid förlust (automatisk säkerhet)
 
-MEAN REVERSION MODE (svag trend/oscillerande):
-- Entry: SHORT vid upp-brott, LONG vid ner-brott (satsa på reversion)
-- Exit: TP vid återgång till L, Stop vid fortsatt rörelse från L
-- L är target-nivå (korsning = exit)
+FAST L-LINJE FÖRDELAR:
+- Större rörelser = större exits
+- Tydliga brytpunkter (visuellt klart)
+- Enklare att förstå och felsöka
+- Scaling skyddar mot fel riktning
 
 FEATURES:
-- Realtids trendanalys (directional consistency, slope, volatility)
-- Progressiv scaling (IN/OUT) fungerar i båda modes
-- Visuella mode-indikatorer i grafen (📈 Breakout / 🔄 Reversion)
-- Mode-byten markerade på grafen för analys
+- 0.01 BTC per trade (~$1000 @ $100k BTC)
+- Progressive scaling (100% → 70% → 40% → 20%)
+- Min hold time: 60s (låter scaling jobba)
+- Max loss protection: 1%
+- TP: 0.7% (datadrivet optimalt)
 
 Kör:
     python "Markov adaptive live paper.py"
@@ -701,18 +704,16 @@ pos   = Position()
 mk    = MarkovState()
 paper = PaperBroker(START_USDT, START_BTC)
 
-# Adaptive strategy components (OPTIMERADE VÄRDEN)
-# Med 6 förbättrade metriker krävs högre threshold för BREAKOUT
-# eftersom detection är mer konservativ (mer pålitlig)
+# v2.9.4: BREAKOUT-ONLY MODE (förenkling)
+# Använder bara BREAKOUT-strategi (följ trenden vid L-brytning)
+# Scaling fungerar som säkerhet - ingen behov av mean reversion
 trend_detector = TrendDetector(window_size=50)
 mode_manager = StrategyModeManager(
-    threshold=0.50,      # Mittvärde - balanserad
-    hysteresis=0.05      # ÄNDRAT: 0.08 → 0.05 för snabbare byte (mindre buffer)
+    threshold=0.50,
+    hysteresis=0.05
 )
-# Nu betyder:
-# trend < 0.45 (0.50 - 0.05) = MEAN_REVERSION
-# trend > 0.55 (0.50 + 0.05) = BREAKOUT  
-# 0.45-0.55 = Hysteresis zone (stannar i current mode) - MINDRE buffer = snabbare switch
+# LÅST TILL BREAKOUT - ingen mode switching
+mode_manager.current_mode = "BREAKOUT"
 
 # Dynamisk positionsstorlek state
 position_size_state = {
@@ -763,11 +764,12 @@ START_MODE = True
 # Scaling fungerar som säkerhetsnät om priset går "fel väg"
 L = START_PRICE
 
-print(f"🚀 Startar Markov ADAPTIVE Strategy (paper mode={'ON' if ORDER_TEST else 'OFF'})")
-print(f"🧠 Intelligent mode: BREAKOUT (trend ≥0.65) ↔️ MEAN_REVERSION (trend <0.55)")
-print(f"🔧 Startpris={START_PRICE:.2f}  Startband: [{L_lower:.2f}, {L_upper:.2f}]  för {SYMBOL}")
-print(f"📡 Trading: {POLL_SEC}s | Graf: {GRAPH_UPDATE_SEC}s | TP={TP_PCT*100:.3f}% | Fee≈{TAKER_FEE_PCT*100:.3f}%")
-print(f"⏱️ Min hold: {MIN_HOLD_TIME_SEC:.0f}s (låter scaling jobba) | Cooldown: {COOLDOWN_SEC:.1f}s | TP-chain: {TP_CHAIN_MAX}")
+print(f"🚀 Startar Markov BREAKOUT Strategy v2.9.4 (paper mode={'ON' if ORDER_TEST else 'OFF'})")
+print(f"📈 BREAKOUT-ONLY mode: Följ momentum vid L-brytning (ingen mean reversion)")
+print(f"🔧 Startpris={START_PRICE:.2f}  Fast L-linje (uppdateras vid exit)  {SYMBOL}")
+print(f"💰 Position: {float(ORDER_QTY):.3f} BTC (~${float(ORDER_QTY * START_PRICE):.0f})")
+print(f"📡 Trading: {POLL_SEC}s | Graf: {GRAPH_UPDATE_SEC}s | TP={TP_PCT*100:.2f}% | Max Loss={MAX_LOSS_PCT*100:.1f}%")
+print(f"⏱️ Min hold: {MIN_HOLD_TIME_SEC:.0f}s (låter scaling jobba) | Scaling: 100%→70%→40%→20%")
 if VOL_FILTER:
     print(f"🌬️ Vol-filter aktivt: period={VOL_PERIOD} span≥{MIN_VOL*100:.3f}%")
 if LOSS_PAUSE_CNT > 0:
@@ -1606,7 +1608,7 @@ position_info_text = ax_position.text(0.5, 0.75, '', transform=ax_position.trans
                                       bbox=dict(boxstyle="round,pad=0.6", alpha=0.85, facecolor='lightcyan',
                                            edgecolor='black', linewidth=2))
 
-ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
+ax.set_title(f"{SYMBOL} – Markov BREAKOUT (v2.9.4 - Fast L-line)", fontsize=12, fontweight='bold')
 ax.set_xlabel("Ticks")
 ax.set_ylabel("Price")
 ax.grid(True, alpha=0.3)
@@ -1745,20 +1747,18 @@ def refresh_lines(current_price: Decimal):
             )
             drawn_annotations.append(text_obj)
     
-    # Kompakt position info MED mode-indikator (höger överkant)
+    # Kompakt position info (höger överkant) - BREAKOUT-ONLY
     trend_strength = trend_detector.calculate_trend_strength()
-    mode_symbol = mode_manager.get_mode_symbol()
-    mode_name = mode_manager.current_mode
     
     if pos.side != "FLAT" and pos.entry is not None:
         pnl_pct = ((float(current_price) - float(pos.entry)) / float(pos.entry) * 100) if pos.side == "LONG" else ((float(pos.entry) - float(current_price)) / float(pos.entry) * 100)
-        pos_info = f"{mode_symbol} {mode_name} | {pos.side} @ {float(pos.entry):.2f} | PnL: {pnl_pct:+.2f}%\nTrend: {trend_strength:.2f}"
+        pos_info = f"📈 BREAKOUT | {pos.side} @ {float(pos.entry):.2f} | PnL: {pnl_pct:+.2f}%\nTrend: {trend_strength:.2f}"
     else:
-        pos_info = f"{mode_symbol} {mode_name} | FLAT | USDT: {float(paper.balances['USDT']):.2f}\nTrend: {trend_strength:.2f}"
+        pos_info = f"📈 BREAKOUT | FLAT | USDT: {float(paper.balances['USDT']):.2f}\nTrend: {trend_strength:.2f}"
     pos_text.set_text(pos_info)
     
-    # Ändra färg på info-box baserat på mode
-    pos_text.get_bbox_patch().set_facecolor(mode_manager.get_mode_color())
+    # Orange färg för BREAKOUT mode
+    pos_text.get_bbox_patch().set_facecolor('orange')
     pos_text.get_bbox_patch().set_alpha(0.7)
     
     # ========== BALANCE INFO BOX ==========
@@ -1930,71 +1930,25 @@ def main():
             if len(py) == max_points:
                 tick_offset += 1
             
-            # ========== ADAPTIVE STRATEGY: Trend Detection & Mode Selection ==========
-            # Mata in pris till trend detector
+            # ========== v2.9.4: BREAKOUT-ONLY (ingen mode switching) ==========
+            # Mata in pris till trend detector (för diagnostik)
             trend_detector.add_price(price)
             
-            # Uppdatera mode VARJE TICK för snabb reaktion (endast om vi har tillräckligt data)
+            # FAST BREAKOUT MODE - ingen switching!
+            current_mode = "BREAKOUT"
+            mode_changed = False
+            
+            # Trend strength bara för diagnostik
             if len(trend_detector.price_history) >= trend_detector.window_size:
                 trend_strength = trend_detector.calculate_trend_strength()
-                current_mode, mode_changed = mode_manager.update_mode(trend_strength)
                 
-                # DIAGNOSTIK: Visa detaljerad trend-analys var 50:e tick
-                if tick % 50 == 0 and len(py) >= 20:
+                # DIAGNOSTIK: Visa trend-analys var 100:e tick (bara för info)
+                if tick % 100 == 0 and len(py) >= 20:
                     metrics = trend_detector.get_detailed_metrics()
                     trend_desc = trend_detector.get_trend_description()
-                    print(f"📊 TREND CHECK (tick {tick}): {trend_desc} | Score: {trend_strength:.3f} | Mode: {current_mode}")
+                    print(f"📊 TREND (tick {tick}): {trend_desc} | Score: {trend_strength:.3f} | Mode: BREAKOUT (fixed)")
                     if metrics:
-                        print(f"   └─ Pris: {metrics['current_price']:.2f} | Δ: {metrics['price_change_pct']:+.3f}% | Range: {metrics['price_range']:.2f} | Max streak: {metrics['max_streak']}")
-                
-                # Visualisera mode-byten på grafen
-                if mode_changed:
-                    # TVINGAD EXIT vid mode-byte (om aktiverat) - GÖR DETTA FÖRST!
-                    if FORCE_EXIT_ON_MODE_SWITCH and pos.side != "FLAT":
-                        unrealized_pnl = pos.unrealized_pnl_pct(price)
-                        print(f"\n{'='*70}")
-                        print(f"🔄 MODE SWITCH EXIT: Closing {pos.side} position BEFORE mode change")
-                        print(f"   Old mode: {mode_manager.mode_changes[-1]['from_mode']}")
-                        print(f"   New mode: {current_mode}")
-                        print(f"   Unrealized PnL: {float(unrealized_pnl):.3f}%")
-                        print(f"{'='*70}\n")
-                        
-                        qty = pos.qty if pos.qty > 0 else ORDER_QTY
-                        if ORDER_TEST:
-                            if pos.side == "LONG":
-                                paper.market_sell(SYMBOL, qty, price)
-                            else:
-                                paper.market_buy(SYMBOL, qty, price)
-                        
-                        do_exit(pos.side, price, "MODE_SWITCH")
-                        pos.flat()
-                        L = price
-                    
-                    # Sedan visualisera mode-bytet
-                    mode_color = 'orange' if current_mode == "BREAKOUT" else 'cyan'
-                    mode_text = "📈BRK" if current_mode == "BREAKOUT" else "🔄REV"
-                    trade_annotations.append({
-                        'abs_tick': tick_offset + len(py) - 1,
-                        'y': float(price),
-                        'text': mode_text,
-                        'color': 'black',
-                        'bgcolor': mode_color,
-                        'size': 7
-                    })
-                    
-                    # Visa VARFÖR mode bytte
-                    metrics = trend_detector.get_detailed_metrics()
-                    print(f"\n{'='*60}")
-                    print(f"🔄 MODE SWITCH: {mode_manager.mode_changes[-1]['from_mode']} → {current_mode}")
-                    print(f"   Trend Strength: {trend_strength:.3f}")
-                    if metrics:
-                        print(f"   Pris: {metrics['current_price']:.2f} (Δ {metrics['price_change_pct']:+.3f}%)")
-                        print(f"   Max konsekutiv streak: {metrics['max_streak']} moves")
-                    print(f"{'='*60}\n")
-                    
-                    # Om mode bytte och vi har en öppen position: överväg action
-                    if pos.side != "FLAT":
-                        print(f"⚠️ Mode switched while in {pos.side} position - continuing with new mode")
+                        print(f"   └─ Pris: {metrics['current_price']:.2f} | Δ: {metrics['price_change_pct']:+.3f}% | Range: {metrics['price_range']:.2f}")
             # ==========================================================================
             
             # v2.9.3: FAST L-LINJE - uppdateras BARA vid exit (inte adaptivt)
