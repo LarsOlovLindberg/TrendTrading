@@ -1688,17 +1688,23 @@ def refresh_lines(current_price: Decimal):
         TP_line.set_visible(False)
         BE_line.set_visible(False)
 
-    # Håll linjerna i bild - inkludera TP om position aktiv
+    # Håll linjerna i bild - ALLTID visa L och TP (om position finns)
     if len(py) >= 5:
+        # Start med pris-range
         lo = min(min(py), float(L_lower))
         hi = max(max(py), float(L_upper))
         
-        # Inkludera TP-linjen i zoom om position är öppen
+        # ALLTID inkludera L-linjen
+        lo = min(lo, L_val)
+        hi = max(hi, L_val)
+        
+        # ALLTID inkludera TP-linjen om position är öppen
         if not START_MODE and pos.entry is not None and pos.side != "FLAT":
             tp_target = float(pos.avg_entry_price() * (Decimal("1") + TP_PCT))
-            lo = min(lo, tp_target, L_val)
-            hi = max(hi, tp_target, L_val)
+            lo = min(lo, tp_target)
+            hi = max(hi, tp_target)
         
+        # Lägg till 15% marginal så linjerna inte är på kanten
         rng = max(1.0, (hi - lo) * 0.15)
         ax.set_ylim(lo - rng*0.2, hi + rng*0.2)
         ax.set_xlim(max(0, len(py) - max_points), len(py))
