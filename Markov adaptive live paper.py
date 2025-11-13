@@ -1115,9 +1115,11 @@ def do_exit(side: str, exit_price: Decimal, state_tag: str):
     })
     
     # Lägg till i exit history för scrollande lista
+    pnl_usd = float(pnl_pct) / 100.0 * float(entry_price) * float(qty)  # Convert % to USD
     exit_history.append({
         'side': side,
         'pnl_pct': float(pnl_pct),
+        'pnl_usd': pnl_usd,
         'reason': state_tag,
         'price': float(exit_price)
     })
@@ -1771,14 +1773,14 @@ def refresh_lines(current_price: Decimal):
         balance_text.get_bbox_patch().set_facecolor('lightgray')
     
     # ========== EXIT HISTORY BOX ==========
-    # Visa senaste 5 exits (kompakt för mindre box)
+    # Visa senaste 5 exits med både USD och %
     if exit_history:
-        history_lines = ["RECENT EXITS", "━━━━━━━━━━━━"]
+        history_lines = ["RECENT EXITS", "━━━━━━━━━━━━━━━"]
         for exit_data in list(reversed(exit_history))[:5]:  # Max 5 senaste
             side_symbol = "🟢L" if exit_data['side'] == "LONG" else "🔴S"
-            pnl = exit_data['pnl_pct']
+            pnl_pct = exit_data['pnl_pct']
+            pnl_usd = exit_data.get('pnl_usd', 0)  # USD value
             reason = exit_data['reason']
-            price = exit_data['price']
             
             # Färg-emoji baserat på resultat
             if reason in ("LW", "SW"):
@@ -1788,11 +1790,12 @@ def refresh_lines(current_price: Decimal):
             else:
                 result = "✗"
             
-            history_lines.append(f"{side_symbol}{result}{pnl:>5.1f}%")
+            # Format: 🟢L✓ $12.34 +1.2%
+            history_lines.append(f"{side_symbol}{result} ${pnl_usd:>6.2f} {pnl_pct:>+5.1f}%")
         
         exit_history_info = "\n".join(history_lines)
     else:
-        exit_history_info = "RECENT EXITS\n━━━━━━━━━━━━\nNo exits yet"
+        exit_history_info = "RECENT EXITS\n━━━━━━━━━━━━━━━\nNo exits yet"
     
     exit_history_text.set_text(exit_history_info)
     
