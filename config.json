@@ -23,8 +23,8 @@
   
   "_comment_strategy": "=== CORE STRATEGY ===",
   "symbol": "BTCUSDT",
-  "order_quantity": 0.01,
-  "_comment_quantity": "0.01 BTC = ~$1000 position @ $100k BTC (10% of capital). With 0.7% TP = $7 profit, 1% max loss = $10 (0.1% of account)",
+  "order_qty": 0.01,
+  "_comment_qty": "0.01 BTC = ~$1000 position @ $100k BTC (10% of capital). With 0.7% TP = $7 profit, 1% max loss = $10 (0.1% of account)",
   
   "_comment_risk": "=== RISK MANAGEMENT (DATA-DRIVEN) ===",
   "take_profit_pct": 0.007,

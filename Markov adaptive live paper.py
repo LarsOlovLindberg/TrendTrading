@@ -756,7 +756,12 @@ START_BAND_PCT = Decimal(str(cfg.get("start_band_pct", 0.0005)))
 L_lower = (START_PRICE * (Decimal("1") - START_BAND_PCT)).quantize(Decimal("0.01"))
 L_upper = (START_PRICE * (Decimal("1") + START_BAND_PCT)).quantize(Decimal("0.01"))
 START_MODE = True
-L = START_PRICE  # L uppdateras till entry så fort bandet bryts
+
+# v2.9.3: FAST L-LINJE (icke-adaptiv)
+# L är en FAST brytpunkt som flyttas BARA vid exit till exit-priset
+# Detta ger tydliga brytpunkter och större rörelser (= större exits)
+# Scaling fungerar som säkerhetsnät om priset går "fel väg"
+L = START_PRICE
 
 print(f"🚀 Startar Markov ADAPTIVE Strategy (paper mode={'ON' if ORDER_TEST else 'OFF'})")
 print(f"🧠 Intelligent mode: BREAKOUT (trend ≥0.65) ↔️ MEAN_REVERSION (trend <0.55)")
@@ -1992,43 +1997,10 @@ def main():
                         print(f"⚠️ Mode switched while in {pos.side} position - continuing with new mode")
             # ==========================================================================
             
-            # Adaptive L update (om aktiverat)
-            if ADAPTIVE_L_ENABLED and not START_MODE:
-                # Uppdatera VARJE tick om i position (dynamisk stop), annars var 10:e tick
-                update_interval = 1 if pos.side != "FLAT" else ADAPTIVE_L_UPDATE_INTERVAL
-                
-                if tick % update_interval == 0 and len(py) >= adaptive_L_calc.trend_detect_window:
-                    # Konvertera py till Decimal för beräkning
-                    price_history = [Decimal(str(p)) for p in py]
-                    new_L, diag = adaptive_L_calc.calculate_adaptive_L(price_history)
-                    
-                    # Uppdatera L om förändringen är signifikant
-                    # Trailing stop: L får bara flyttas åt "rätt" håll (upp för LONG, ner för SHORT)
-                    min_change = 0.00005 if pos.side != "FLAT" else 0.0001
-                    
-                    # Beslut om L ska uppdateras
-                    should_update = False
-                    if pos.side == "FLAT":
-                        # Ingen position: uppdatera fritt
-                        should_update = adaptive_L_calc.should_update_L(L, new_L, min_change_pct=min_change)
-                    elif pos.side == "LONG":
-                        # LONG: L får bara gå UPP (trailing stop uppåt)
-                        if new_L > L and adaptive_L_calc.should_update_L(L, new_L, min_change_pct=min_change):
-                            should_update = True
-                    elif pos.side == "SHORT":
-                        # SHORT: L får bara gå NER (trailing stop nedåt)
-                        if new_L < L and adaptive_L_calc.should_update_L(L, new_L, min_change_pct=min_change):
-                            should_update = True
-                    
-                    if should_update:
-                        old_L = L
-                        L = new_L
-                        # Logga alltid när i position, annars bara vid märkbar trend
-                        if pos.side != "FLAT" or diag['trend_strength'] > 0.1:
-                            in_pos = f" [TRAILING {pos.side}]" if pos.side != "FLAT" else ""
-                            print(f"🧠 Adaptive L: {float(old_L):.2f} → {float(L):.2f} "
-                                  f"(trend: {diag['trend_direction']}, styrka: {diag['trend_strength']:.2f}){in_pos}")
-
+            # v2.9.3: FAST L-LINJE - uppdateras BARA vid exit (inte adaptivt)
+            # L flyttas till exit-priset vid varje exit → tydlig brytpunkt
+            # Scaling fungerar som säkerhet om priset går åt "fel" håll
+            
             pos.update_extremes(price)
 
             # ========== TRADING LOGIC (körs endast var POLL_SEC) ==========
