@@ -1496,12 +1496,20 @@ def maybe_enter(price: Decimal):
 
 # ----------------------- Grafik ----------------------------------------------
 plt.ion()
-# Skapa figur med GridSpec för att ha graf + info-panel
-fig = plt.figure(figsize=(16, 7))
-gs = fig.add_gridspec(1, 2, width_ratios=[5, 1], wspace=0.02)
-ax = fig.add_subplot(gs[0])  # Huvudgraf (vänster)
-ax_info = fig.add_subplot(gs[1])  # Info-panel (höger)
-ax_info.axis('off')  # Ingen axel för info-panel
+# Skapa figur med GridSpec: graf + 2x2 info-grid bredvid
+fig = plt.figure(figsize=(18, 7))
+gs = fig.add_gridspec(1, 2, width_ratios=[3.5, 1], wspace=0.03)
+ax = fig.add_subplot(gs[0])  # Huvudgraf (vänster, smalare)
+
+# Info-panel med 2x2 grid för boxarna
+gs_info = gs[1].subgridspec(2, 2, hspace=0.15, wspace=0.10)
+ax_balance = fig.add_subplot(gs_info[0, :])  # Balance spanning top row
+ax_exits = fig.add_subplot(gs_info[1, 0])     # Exits bottom left
+ax_position = fig.add_subplot(gs_info[1, 1])  # Position bottom right
+
+# Stäng av axlar för info-panelerna
+for info_ax in [ax_balance, ax_exits, ax_position]:
+    info_ax.axis('off')
 
 price_line, = ax.plot([], [], lw=1.5, color='blue')
 L_line,     = ax.plot([], [], linestyle="--", lw=2.0, color='orange')
@@ -1526,23 +1534,23 @@ pos_text = ax.text(0.99, 0.97, '', transform=ax.transAxes, fontsize=10,
                    va='top', ha='right', fontweight='bold',
                    bbox=dict(boxstyle="round,pad=0.5", alpha=0.8, facecolor='lightyellow'))
 
-# INFO PANEL (höger sida) - använd ax_info istället för ax
-# Balance info box (överst i info-panel)
-balance_text = ax_info.text(0.5, 0.95, '', transform=ax_info.transAxes, fontsize=9,
-                            va='top', ha='center', family='monospace',
-                            bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
-                                     edgecolor='black', linewidth=2))
+# INFO PANEL - 2x2 grid layout
+# Balance box (top, spanning full width)
+balance_text = ax_balance.text(0.5, 0.5, '', transform=ax_balance.transAxes, fontsize=9,
+                               va='center', ha='center', family='monospace',
+                               bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
+                                        edgecolor='black', linewidth=2))
 
-# Exit history box (under balance box i info-panel)
-exit_history_text = ax_info.text(0.5, 0.63, '', transform=ax_info.transAxes, fontsize=8,
-                                 va='top', ha='center', family='monospace',
-                                 bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightyellow',
-                                          edgecolor='black', linewidth=2))
+# Exit history box (bottom left)
+exit_history_text = ax_exits.text(0.5, 0.5, '', transform=ax_exits.transAxes, fontsize=7,
+                                  va='center', ha='center', family='monospace',
+                                  bbox=dict(boxstyle="round,pad=0.5", alpha=0.85, facecolor='lightyellow',
+                                           edgecolor='black', linewidth=2))
 
-# Current position box (längst ner i info-panel)
-position_info_text = ax_info.text(0.5, 0.28, '', transform=ax_info.transAxes, fontsize=8,
-                                  va='top', ha='center', family='monospace',
-                                  bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightcyan',
+# Current position box (bottom right)
+position_info_text = ax_position.text(0.5, 0.5, '', transform=ax_position.transAxes, fontsize=7,
+                                      va='center', ha='center', family='monospace',
+                                      bbox=dict(boxstyle="round,pad=0.5", alpha=0.85, facecolor='lightcyan',
                                            edgecolor='black', linewidth=2))
 
 ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
@@ -1728,22 +1736,11 @@ def refresh_lines(current_price: Decimal):
     total_change_usdt = total_usdt_value - initial_total
     total_change_pct = (total_change_usdt / initial_total * 100) if initial_total > 0 else 0
     
-    # Formatera balance text - centrerad layout för info-panel
+    # Formatera balance text - kompakt för bred box
     balance_info = (
-        f"     BALANCE\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"  START\n"
-        f"USDT: {float(INITIAL_USDT):>10.2f}\n"
-        f" BTC: {float(INITIAL_BTC):>10.5f}\n"
-        f" Tot: {initial_total:>10.2f}\n"
-        f"\n"
-        f"  NOW\n"
-        f"USDT: {current_usdt:>10.2f}\n"
-        f" BTC: {total_btc:>10.5f}\n"
-        f" Tot: {total_usdt_value:>10.2f}\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"P&L: {total_change_usdt:>11.2f}\n"
-        f"     {total_change_pct:>11.2f}%"
+        f"BALANCE  |  START: ${float(INITIAL_USDT):.0f} + {float(INITIAL_BTC):.5f}฿ = ${initial_total:.0f}  "
+        f"|  NOW: ${current_usdt:.0f} + {total_btc:.5f}฿ = ${total_usdt_value:.0f}  "
+        f"|  P&L: ${total_change_usdt:+.2f} ({total_change_pct:+.2f}%)"
     )
     
     balance_text.set_text(balance_info)
@@ -1757,10 +1754,10 @@ def refresh_lines(current_price: Decimal):
         balance_text.get_bbox_patch().set_facecolor('lightgray')
     
     # ========== EXIT HISTORY BOX ==========
-    # Visa senaste 10 exits i scrollande lista (nyaste överst)
+    # Visa senaste 5 exits (kompakt för mindre box)
     if exit_history:
-        history_lines = ["   RECENT EXITS", "━━━━━━━━━━━━━━━━━━━"]
-        for exit_data in reversed(exit_history):  # Nyaste först
+        history_lines = ["RECENT EXITS", "━━━━━━━━━━━━"]
+        for exit_data in list(reversed(exit_history))[:5]:  # Max 5 senaste
             side_symbol = "🟢L" if exit_data['side'] == "LONG" else "🔴S"
             pnl = exit_data['pnl_pct']
             reason = exit_data['reason']
@@ -1774,11 +1771,11 @@ def refresh_lines(current_price: Decimal):
             else:
                 result = "✗"
             
-            history_lines.append(f" {side_symbol} {result}{pnl:>6.2f}% @{price:.0f}")
+            history_lines.append(f"{side_symbol}{result}{pnl:>5.1f}%")
         
         exit_history_info = "\n".join(history_lines)
     else:
-        exit_history_info = "   RECENT EXITS\n━━━━━━━━━━━━━━━━━━━\n    No exits yet"
+        exit_history_info = "RECENT EXITS\n━━━━━━━━━━━━\nNo exits yet"
     
     exit_history_text.set_text(exit_history_info)
     
@@ -1804,21 +1801,16 @@ def refresh_lines(current_price: Decimal):
         pos_symbol = "🟢LONG" if pos.side == "LONG" else "🔴SHORT"
         
         position_info = (
-            f"  CURRENT POSITION\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"  {pos_symbol}\n"
-            f"Entry: {entry_price:>10.2f}\n"
-            f"  Now: {float(current_price):>10.2f}\n"
-            f"  Qty: {qty:>10.5f}\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"Value@Entry:\n"
-            f"    {pos_value_entry:>10.2f} USDT\n"
-            f"Value Now:\n"
-            f"    {pos_value_now:>10.2f} USDT\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"Unrealized P&L:\n"
-            f"  {unrealized_pnl_usdt:>10.2f} USDT\n"
-            f"  {unrealized_pnl_pct:>10.2f}%"
+            f"POSITION\n"
+            f"━━━━━━━━━━━\n"
+            f"{pos_symbol}\n"
+            f"@{entry_price:.0f}\n"
+            f"→{float(current_price):.0f}\n"
+            f"{qty:.5f}฿\n"
+            f"━━━━━━━━━━━\n"
+            f"P&L:\n"
+            f"${unrealized_pnl_usdt:+.2f}\n"
+            f"{unrealized_pnl_pct:+.2f}%"
         )
         
         # Färg baserat på P&L
@@ -1830,10 +1822,11 @@ def refresh_lines(current_price: Decimal):
             position_info_text.get_bbox_patch().set_facecolor('lightgray')
     else:
         position_info = (
-            f"  CURRENT POSITION\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"       FLAT\n"
-            f"   No open position"
+            f"POSITION\n"
+            f"━━━━━━━━━━━\n"
+            f"FLAT\n"
+            f"No open\n"
+            f"position"
         )
         position_info_text.get_bbox_patch().set_facecolor('lightgray')
     
