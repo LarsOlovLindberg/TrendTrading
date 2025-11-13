@@ -1496,16 +1496,16 @@ def maybe_enter(price: Decimal):
 
 # ----------------------- Grafik ----------------------------------------------
 plt.ion()
-# Skapa figur med GridSpec: graf + 2x2 info-grid bredvid
-fig = plt.figure(figsize=(18, 7))
-gs = fig.add_gridspec(1, 2, width_ratios=[3.5, 1], wspace=0.03)
-ax = fig.add_subplot(gs[0])  # Huvudgraf (vänster, smalare)
+# Skapa figur med GridSpec: graf + 3 kolumner info-panel
+fig = plt.figure(figsize=(20, 7))
+gs = fig.add_gridspec(1, 2, width_ratios=[2.5, 1], wspace=0.05)
+ax = fig.add_subplot(gs[0])  # Huvudgraf (vänster)
 
-# Info-panel med 2x2 grid för boxarna
-gs_info = gs[1].subgridspec(2, 2, hspace=0.15, wspace=0.10)
-ax_balance = fig.add_subplot(gs_info[0, :])  # Balance spanning top row
-ax_exits = fig.add_subplot(gs_info[1, 0])     # Exits bottom left
-ax_position = fig.add_subplot(gs_info[1, 1])  # Position bottom right
+# Info-panel med 3 kolumner vertikalt
+gs_info = gs[1].subgridspec(1, 3, wspace=0.08)
+ax_balance = fig.add_subplot(gs_info[0, 0])    # Balance (vänster kolumn)
+ax_exits = fig.add_subplot(gs_info[0, 1])       # Exits (mitten kolumn)
+ax_position = fig.add_subplot(gs_info[0, 2])    # Position (höger kolumn)
 
 # Stäng av axlar för info-panelerna
 for info_ax in [ax_balance, ax_exits, ax_position]:
@@ -1534,23 +1534,23 @@ pos_text = ax.text(0.99, 0.97, '', transform=ax.transAxes, fontsize=10,
                    va='top', ha='right', fontweight='bold',
                    bbox=dict(boxstyle="round,pad=0.5", alpha=0.8, facecolor='lightyellow'))
 
-# INFO PANEL - 2x2 grid layout
-# Balance box (top, spanning full width)
-balance_text = ax_balance.text(0.5, 0.5, '', transform=ax_balance.transAxes, fontsize=9,
-                               va='center', ha='center', family='monospace',
-                               bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
+# INFO PANEL - 3 kolumner layout med fritt utrymme ovanför
+# Balance box (vänster kolumn)
+balance_text = ax_balance.text(0.5, 0.75, '', transform=ax_balance.transAxes, fontsize=8,
+                               va='top', ha='center', family='monospace',
+                               bbox=dict(boxstyle="round,pad=0.6", alpha=0.85, facecolor='lightblue', 
                                         edgecolor='black', linewidth=2))
 
-# Exit history box (bottom left)
-exit_history_text = ax_exits.text(0.5, 0.5, '', transform=ax_exits.transAxes, fontsize=7,
-                                  va='center', ha='center', family='monospace',
-                                  bbox=dict(boxstyle="round,pad=0.5", alpha=0.85, facecolor='lightyellow',
+# Exit history box (mitten kolumn)
+exit_history_text = ax_exits.text(0.5, 0.75, '', transform=ax_exits.transAxes, fontsize=8,
+                                  va='top', ha='center', family='monospace',
+                                  bbox=dict(boxstyle="round,pad=0.6", alpha=0.85, facecolor='lightyellow',
                                            edgecolor='black', linewidth=2))
 
-# Current position box (bottom right)
-position_info_text = ax_position.text(0.5, 0.5, '', transform=ax_position.transAxes, fontsize=7,
-                                      va='center', ha='center', family='monospace',
-                                      bbox=dict(boxstyle="round,pad=0.5", alpha=0.85, facecolor='lightcyan',
+# Current position box (höger kolumn)
+position_info_text = ax_position.text(0.5, 0.75, '', transform=ax_position.transAxes, fontsize=8,
+                                      va='top', ha='center', family='monospace',
+                                      bbox=dict(boxstyle="round,pad=0.6", alpha=0.85, facecolor='lightcyan',
                                            edgecolor='black', linewidth=2))
 
 ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
@@ -1736,11 +1736,23 @@ def refresh_lines(current_price: Decimal):
     total_change_usdt = total_usdt_value - initial_total
     total_change_pct = (total_change_usdt / initial_total * 100) if initial_total > 0 else 0
     
-    # Formatera balance text - kompakt för bred box
+    # Formatera balance text - vertikal layout för kolumn
     balance_info = (
-        f"BALANCE  |  START: ${float(INITIAL_USDT):.0f} + {float(INITIAL_BTC):.5f}฿ = ${initial_total:.0f}  "
-        f"|  NOW: ${current_usdt:.0f} + {total_btc:.5f}฿ = ${total_usdt_value:.0f}  "
-        f"|  P&L: ${total_change_usdt:+.2f} ({total_change_pct:+.2f}%)"
+        f"  BALANCE\n"
+        f"━━━━━━━━━━━━\n"
+        f"START\n"
+        f"${float(INITIAL_USDT):.0f}\n"
+        f"{float(INITIAL_BTC):.5f}฿\n"
+        f"=${initial_total:.0f}\n"
+        f"\n"
+        f"NOW\n"
+        f"${current_usdt:.0f}\n"
+        f"{total_btc:.5f}฿\n"
+        f"=${total_usdt_value:.0f}\n"
+        f"━━━━━━━━━━━━\n"
+        f"P&L\n"
+        f"${total_change_usdt:+.2f}\n"
+        f"{total_change_pct:+.2f}%"
     )
     
     balance_text.set_text(balance_info)

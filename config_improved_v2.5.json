@@ -1,0 +1,108 @@
+{
+  "_comment": "=== IMPROVED ADAPTIVE STRATEGY v2.5 ===",
+  "_improvements": [
+    "1. TRAILING STOP LOSS - Locks in profits automatically",
+    "2. MOMENTUM DETECTION - Catches rallies early",
+    "3. TIGHTER RISK MANAGEMENT - Max 1% loss per trade",
+    "4. FASTER MODE SWITCHING - 3s cooldown for quick adaptation",
+    "5. RALLY BREAKOUT MODE - Special mode for strong trends"
+  ],
+  
+  "_comment_api": "=== API & Testnet ===",
+  "api_key": "TRXPKF1eCPBKX2HIUacxIcbARSfhkPgJk1BxmKnqOyoKaI5AVMQESPSZfLB4CuhX",
+  "api_secret": "PVpRHMEoqEqP6DssUzSgtwHvbfZUVgyAJN9AF0dgmYHN0nksM8QK9k1RLm2ksQex",
+  "base_symbol": "BTCUSDT",
+  "testnet": true,
+  "order_test": true,
+  
+  "_comment_capital": "=== Startkapital ===",
+  "paper_usdt": 5000,
+  "paper_btc": 0.05,
+  
+  "_comment_strategy": "=== CORE STRATEGY ===",
+  "symbol": "BTCUSDT",
+  "order_quantity": 0.001,
+  
+  "_comment_risk": "=== RISK MANAGEMENT (IMPROVED) ===",
+  "take_profit_pct": 0.025,
+  "_comment_tp": "2.5% TP - unchanged, good target",
+  
+  "max_loss_pct": 0.01,
+  "_comment_max_loss": "REDUCED from 1.5% to 1% - tighter risk control",
+  
+  "trailing_stop_enabled": true,
+  "_comment_trailing_stop": "NEW: Activate trailing stop after +0.5% profit",
+  "trailing_stop_activation": 0.005,
+  "trailing_stop_distance": 0.003,
+  "_comment_trailing_distance": "Trail 0.3% behind peak - locks in gains",
+  
+  "max_hold_seconds": 1200,
+  "_comment_max_hold": "REDUCED from 1800s to 1200s (20 min) - faster exits",
+  
+  "_comment_adaptive": "=== ADAPTIVE MODE SWITCHING (IMPROVED) ===",
+  "trend_window_size": 30,
+  "_comment_window": "REDUCED from 50 to 30 - faster trend detection",
+  
+  "mode_threshold": 0.45,
+  "_comment_threshold": "LOWERED from 0.50 to 0.45 - easier to switch modes",
+  
+  "hysteresis": 0.03,
+  "_comment_hysteresis": "REDUCED from 0.05 to 0.03 - less sticky modes",
+  
+  "mode_switch_cooldown": 3.0,
+  "_comment_cooldown": "REDUCED from 5s to 3s - faster adaptation",
+  
+  "force_exit_on_mode_switch": true,
+  "_comment_force_exit": "Keep enabled - prevents conflicting strategies",
+  
+  "_comment_momentum": "=== MOMENTUM DETECTION (NEW) ===",
+  "momentum_enabled": true,
+  "momentum_threshold": 0.75,
+  "_comment_momentum_threshold": "Switch to RALLY mode when trend_strength > 0.75",
+  
+  "rally_mode_multiplier": 1.5,
+  "_comment_rally_mult": "Increase position size by 50% during strong trends",
+  
+  "rally_mode_tp": 0.04,
+  "_comment_rally_tp": "Higher TP (4%) for rally trades",
+  
+  "_comment_scaling": "=== SCALING (ADJUSTED) ===",
+  "scale_in_enabled": true,
+  "scale_in_factor": 1.3,
+  "_comment_scale_in_factor": "REDUCED from 1.5 to 1.3 - smaller additions",
+  
+  "scale_out_enabled": true,
+  "scale_out_factor": 0.4,
+  "_comment_scale_out_factor": "REDUCED from 0.5 to 0.4 - exit slower",
+  
+  "_comment_filters": "=== FILTERS ===",
+  "time_filter": false,
+  "_comment_time_filter": "Disabled - trade 24/7 to catch all rallies",
+  
+  "volume_filter": false,
+  "min_volume_24h": 1000000000,
+  
+  "_comment_dynamic_sizing": "=== DYNAMIC POSITION SIZING ===",
+  "dynamic_position_sizing": true,
+  "position_size_levels": [1.0, 0.7, 0.4, 0.2],
+  "_comment_size_levels": "More gradual reduction: 100% → 70% → 40% → 20%",
+  
+  "size_step_losses": 1,
+  "_comment_step_losses": "REDUCED from 2 to 1 - reduce size faster",
+  
+  "size_reset_on_win": true,
+  
+  "_comment_protection": "=== ADDITIONAL PROTECTION (NEW) ===",
+  "max_consecutive_losses": 3,
+  "_comment_max_losses": "Pause trading after 3 losses in a row",
+  
+  "loss_pause_duration": 300,
+  "_comment_pause_duration": "Wait 5 minutes before resuming",
+  
+  "daily_loss_limit": 0.05,
+  "_comment_daily_limit": "Stop trading if down 5% for the day",
+  
+  "profit_lock_enabled": true,
+  "_comment_profit_lock": "NEW: Lock in 50% of daily profits at EOD",
+  "profit_lock_threshold": 0.02
+}
