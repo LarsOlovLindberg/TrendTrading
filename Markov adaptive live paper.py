@@ -1539,6 +1539,12 @@ exit_history_text = ax_info.text(0.5, 0.58, '', transform=ax_info.transAxes, fon
                                  bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightyellow',
                                           edgecolor='black', linewidth=2))
 
+# Current position box (längst ner i info-panel)
+position_info_text = ax_info.text(0.5, 0.20, '', transform=ax_info.transAxes, fontsize=8,
+                                  va='top', ha='center', family='monospace',
+                                  bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightcyan',
+                                           edgecolor='black', linewidth=2))
+
 ax.set_title(f"{SYMBOL} – Markov ADAPTIVE (Breakout + Mean Reversion)", fontsize=12, fontweight='bold')
 ax.set_xlabel("Ticks")
 ax.set_ylabel("Price")
@@ -1775,6 +1781,63 @@ def refresh_lines(current_price: Decimal):
         exit_history_info = "   RECENT EXITS\n━━━━━━━━━━━━━━━━━━━\n    No exits yet"
     
     exit_history_text.set_text(exit_history_info)
+    
+    # ========== CURRENT POSITION BOX ==========
+    if pos.side != "FLAT" and pos.entry is not None and pos.qty > 0:
+        # Beräkna unrealized P&L
+        entry_price = float(pos.entry)
+        qty = float(pos.qty)
+        
+        if pos.side == "LONG":
+            # LONG: Profit when price goes up
+            unrealized_pnl_usdt = qty * (float(current_price) - entry_price)
+            unrealized_pnl_pct = ((float(current_price) - entry_price) / entry_price * 100)
+            pos_value_now = qty * float(current_price)
+            pos_value_entry = qty * entry_price
+        else:  # SHORT
+            # SHORT: Profit when price goes down
+            unrealized_pnl_usdt = qty * (entry_price - float(current_price))
+            unrealized_pnl_pct = ((entry_price - float(current_price)) / entry_price * 100)
+            pos_value_now = qty * float(current_price)
+            pos_value_entry = qty * entry_price
+        
+        pos_symbol = "🟢LONG" if pos.side == "LONG" else "🔴SHORT"
+        
+        position_info = (
+            f"  CURRENT POSITION\n"
+            f"━━━━━━━━━━━━━━━━━━━\n"
+            f"  {pos_symbol}\n"
+            f"Entry: {entry_price:>10.2f}\n"
+            f"  Now: {float(current_price):>10.2f}\n"
+            f"  Qty: {qty:>10.5f}\n"
+            f"━━━━━━━━━━━━━━━━━━━\n"
+            f"Value@Entry:\n"
+            f"    {pos_value_entry:>10.2f} USDT\n"
+            f"Value Now:\n"
+            f"    {pos_value_now:>10.2f} USDT\n"
+            f"━━━━━━━━━━━━━━━━━━━\n"
+            f"Unrealized P&L:\n"
+            f"  {unrealized_pnl_usdt:>10.2f} USDT\n"
+            f"  {unrealized_pnl_pct:>10.2f}%"
+        )
+        
+        # Färg baserat på P&L
+        if unrealized_pnl_pct > 0:
+            position_info_text.get_bbox_patch().set_facecolor('lightgreen')
+        elif unrealized_pnl_pct < 0:
+            position_info_text.get_bbox_patch().set_facecolor('lightcoral')
+        else:
+            position_info_text.get_bbox_patch().set_facecolor('lightgray')
+    else:
+        position_info = (
+            f"  CURRENT POSITION\n"
+            f"━━━━━━━━━━━━━━━━━━━\n"
+            f"       FLAT\n"
+            f"   No open position"
+        )
+        position_info_text.get_bbox_patch().set_facecolor('lightgray')
+    
+    position_info_text.set_text(position_info)
 
     fig.canvas.draw()
     fig.canvas.flush_events()
