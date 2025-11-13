@@ -1713,23 +1713,12 @@ def refresh_lines(current_price: Decimal):
     current_usdt = float(paper.balances['USDT'])
     current_btc = float(paper.balances['BTC'])
     
-    # Om vi har en öppen position, inkludera unrealized value
-    if pos.side != "FLAT" and pos.qty > 0:
-        if pos.side == "LONG":
-            # LONG: Vi äger BTC (current_btc + locked i position)
-            total_btc = current_btc + float(pos.qty)
-            # Total värde = USDT + (ALLT BTC * current price)
-            total_usdt_value = current_usdt + (total_btc * float(current_price))
-        else:  # SHORT
-            # SHORT: Vi har sålt BTC på kredit, unrealized P&L är diff mellan entry och nu
-            # Total value = USDT + BTC value + unrealized P&L from SHORT
-            unrealized_pnl_usdt = float(pos.qty) * (float(pos.entry) - float(current_price))
-            total_btc = current_btc  # Visa faktisk BTC balance
-            total_usdt_value = current_usdt + unrealized_pnl_usdt + (current_btc * float(current_price))
-    else:
-        # FLAT: Räkna allt BTC till current price
-        total_btc = current_btc
-        total_usdt_value = current_usdt + (current_btc * float(current_price))
+    # KORREKT balansberäkning - Paper account håller alltid rätt balances
+    # Total värde = USDT + (BTC * current price)
+    # Detta fungerar för LONG, SHORT och FLAT!
+    
+    total_btc = current_btc
+    total_usdt_value = current_usdt + (current_btc * float(current_price))
     
     # Beräkna total change vs initial
     initial_total = float(INITIAL_TOTAL_USDT)
