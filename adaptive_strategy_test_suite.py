@@ -109,11 +109,12 @@ def run_single_test(config: Dict, data: List[Dict]) -> Dict:
     # Backtest loop
     for i, candle in enumerate(data):
         price = Decimal(str(candle['close']))
+        current_time = candle.get('timestamp', i * 60)  # Use timestamp or simulate with index
         trend_detector.add_price(price)
         
         if len(trend_detector.price_history) >= TREND_WINDOW_SIZE:
             trend_strength = trend_detector.calculate_trend_strength()
-            current_mode, mode_changed = mode_manager.update_mode(trend_strength)
+            current_mode, mode_changed = mode_manager.update_mode(trend_strength, current_time)
             
             if mode_changed:
                 mode_switches += 1
