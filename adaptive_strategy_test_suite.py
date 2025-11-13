@@ -136,14 +136,34 @@ def run_single_test(config: Dict, data: List[Dict]) -> Dict:
             current_mode = mode_manager.current_mode
             if price > L:
                 if current_mode == "BREAKOUT":
-                    pos.enter_long(price, ORDER_QTY)
+                    # BREAKOUT: Follow uptrend -> LONG
+                    paper.market_buy(SYMBOL, ORDER_QTY, price)
+                    pos.side = "LONG"
+                    pos.entry = price
+                    pos.qty = ORDER_QTY
+                    pos.entry_time = i
                 else:
-                    pos.enter_short(price, ORDER_QTY)
+                    # MEAN_REVERSION: Bet on reversion -> SHORT
+                    paper.market_sell(SYMBOL, ORDER_QTY, price)
+                    pos.side = "SHORT"
+                    pos.entry = price
+                    pos.qty = ORDER_QTY
+                    pos.entry_time = i
             elif price < L:
                 if current_mode == "BREAKOUT":
-                    pos.enter_short(price, ORDER_QTY)
+                    # BREAKOUT: Follow downtrend -> SHORT
+                    paper.market_sell(SYMBOL, ORDER_QTY, price)
+                    pos.side = "SHORT"
+                    pos.entry = price
+                    pos.qty = ORDER_QTY
+                    pos.entry_time = i
                 else:
-                    pos.enter_long(price, ORDER_QTY)
+                    # MEAN_REVERSION: Bet on reversion -> LONG
+                    paper.market_buy(SYMBOL, ORDER_QTY, price)
+                    pos.side = "LONG"
+                    pos.entry = price
+                    pos.qty = ORDER_QTY
+                    pos.entry_time = i
         
         # Exit logic
         if pos.side != "FLAT" and pos.entry is not None:
