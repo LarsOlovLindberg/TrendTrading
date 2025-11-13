@@ -383,6 +383,9 @@ TP_CHAIN_GAP_PCT = Decimal(str(cfg.get("tp_chain_gap_pct", 0.0002)))  # litet ex
 TP_CHAIN_MAX   = int(cfg.get("tp_chain_max", 20))   # säkerhetstak mot oändliga kedjor
 COOLDOWN_SEC   = float(cfg.get("cooldown_sec", 0.0))
 
+# Minimum hold time - låt positionen utvecklas innan exit
+MIN_HOLD_TIME_SEC = float(cfg.get("min_hold_time_sec", 60))  # Minst 1 minut i position innan exit tillåts
+
 # Volatilitetsfilter och paus efter förluster
 VOL_FILTER     = bool(cfg.get("volatility_filter", False))
 VOL_PERIOD     = int(cfg.get("volatility_period", 20))
@@ -759,7 +762,7 @@ print(f"🚀 Startar Markov ADAPTIVE Strategy (paper mode={'ON' if ORDER_TEST el
 print(f"🧠 Intelligent mode: BREAKOUT (trend ≥0.65) ↔️ MEAN_REVERSION (trend <0.55)")
 print(f"🔧 Startpris={START_PRICE:.2f}  Startband: [{L_lower:.2f}, {L_upper:.2f}]  för {SYMBOL}")
 print(f"📡 Trading: {POLL_SEC}s | Graf: {GRAPH_UPDATE_SEC}s | TP={TP_PCT*100:.3f}% | Fee≈{TAKER_FEE_PCT*100:.3f}%")
-print(f"🧊 Cooldown (TP): {COOLDOWN_SEC:.1f}s  | TP-chain max: {TP_CHAIN_MAX}")
+print(f"⏱️ Min hold: {MIN_HOLD_TIME_SEC:.0f}s (låter scaling jobba) | Cooldown: {COOLDOWN_SEC:.1f}s | TP-chain: {TP_CHAIN_MAX}")
 if VOL_FILTER:
     print(f"🌬️ Vol-filter aktivt: period={VOL_PERIOD} span≥{MIN_VOL*100:.3f}%")
 if LOSS_PAUSE_CNT > 0:
@@ -1313,6 +1316,16 @@ def maybe_exit(price: Decimal):
     - MEAN_REVERSION mode: TP vid återgång till L, Stop vid fortsatt rörelse från L
     """
     global L
+    
+    # MINIMUM HOLD TIME: Låt positionen utvecklas och scala innan exit
+    # (Max loss protection körs INNAN maybe_exit i main loop, så den kan fortfarande exit direkt)
+    if pos.side != "FLAT" and pos.entry_time > 0:
+        time_in_position = time.time() - pos.entry_time
+        if time_in_position < MIN_HOLD_TIME_SEC:
+            # Håll kvar positionen tills minimum hold time uppnåtts
+            # Detta ger scaling-strategin tid att jobba
+            return
+    
     qty = pos.qty if pos.qty > 0 else ORDER_QTY
     current_mode = mode_manager.current_mode
     
