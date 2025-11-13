@@ -1528,19 +1528,19 @@ pos_text = ax.text(0.99, 0.97, '', transform=ax.transAxes, fontsize=10,
 
 # INFO PANEL (höger sida) - använd ax_info istället för ax
 # Balance info box (överst i info-panel)
-balance_text = ax_info.text(0.5, 0.98, '', transform=ax_info.transAxes, fontsize=9,
+balance_text = ax_info.text(0.5, 0.95, '', transform=ax_info.transAxes, fontsize=9,
                             va='top', ha='center', family='monospace',
                             bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightblue', 
                                      edgecolor='black', linewidth=2))
 
 # Exit history box (under balance box i info-panel)
-exit_history_text = ax_info.text(0.5, 0.58, '', transform=ax_info.transAxes, fontsize=8,
+exit_history_text = ax_info.text(0.5, 0.63, '', transform=ax_info.transAxes, fontsize=8,
                                  va='top', ha='center', family='monospace',
                                  bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightyellow',
                                           edgecolor='black', linewidth=2))
 
 # Current position box (längst ner i info-panel)
-position_info_text = ax_info.text(0.5, 0.20, '', transform=ax_info.transAxes, fontsize=8,
+position_info_text = ax_info.text(0.5, 0.28, '', transform=ax_info.transAxes, fontsize=8,
                                   va='top', ha='center', family='monospace',
                                   bbox=dict(boxstyle="round,pad=0.7", alpha=0.85, facecolor='lightcyan',
                                            edgecolor='black', linewidth=2))
