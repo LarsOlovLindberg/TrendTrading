@@ -1839,8 +1839,12 @@ def refresh_lines(current_price: Decimal):
     
     position_info_text.set_text(position_info)
 
-    fig.canvas.draw()
-    fig.canvas.flush_events()
+    try:
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+    except Exception:
+        # Ignorera matplotlib errors (t.ex. om fönster stängs)
+        pass
 
 # ----------------------- Huvudloop -------------------------------------------
 last_price_cache: Optional[Decimal] = None
