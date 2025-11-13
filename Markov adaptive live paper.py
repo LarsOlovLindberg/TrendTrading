@@ -536,29 +536,45 @@ class PaperBroker:
         self.exits = 0
 
     def market_buy(self, symbol: str, qty: Decimal, price: Decimal) -> None:
+        # FUTURES-STYLE: Can buy even if we're in SHORT (negative BTC balance)
         cost = (price * qty).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
         fee  = (cost * TAKER_FEE_PCT).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
         total = cost + fee
-        if self.balances["USDT"] < total:
-            raise RuntimeError(f"Otillräckligt USDT: behöver {total}, har {self.balances['USDT']}")
+        
+        # Only check USDT if we're buying MORE than our SHORT position
+        # (if BTC is negative, we're "repaying" the borrowed BTC)
+        if self.balances["BTC"] >= 0:
+            # Normal LONG entry - need USDT
+            if self.balances["USDT"] < total:
+                raise RuntimeError(f"Otillräckligt USDT: behöver {total}, har {self.balances['USDT']}")
+        # else: We're closing SHORT - USDT was already received in market_sell
+        
         self.balances["USDT"] -= total
         self.balances["BTC"]  += qty
         append_csv_row(ORDERS_CSV, [
             datetime.now(timezone.utc).isoformat(timespec="seconds")+"Z",
-            "", "BUY", symbol, f"{qty}", f"{price}", f"{-total}", f"{qty}", "", "", "paper"
+            "", "BUY", symbol, f"{qty}", f"{price}", f"{-total}", f"{qty}", "", "", "paper-futures"
         ])
 
     def market_sell(self, symbol: str, qty: Decimal, price: Decimal) -> None:
-        if self.balances["BTC"] < qty:
-            raise RuntimeError(f"Otillräckligt BTC: behöver {qty}, har {self.balances['BTC']}")
+        # FUTURES-STYLE: Allow SHORT even with 0 BTC (simulates borrowing)
         proceeds = (price * qty).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
         fee  = (proceeds * TAKER_FEE_PCT).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
         net  = proceeds - fee
+        
+        # Check if we have enough USDT for margin (2x leverage = 50% margin)
+        required_margin = proceeds * Decimal("0.5")  # 2x leverage
+        if self.balances["USDT"] < required_margin:
+            raise RuntimeError(f"Otillräcklig margin: behöver {required_margin} USDT, har {self.balances['USDT']}")
+        
+        # Decrease BTC (can go negative for SHORT positions)
         self.balances["BTC"]  -= qty
+        # Add proceeds to USDT
         self.balances["USDT"] += net
+        
         append_csv_row(ORDERS_CSV, [
             datetime.now(timezone.utc).isoformat(timespec="seconds")+"Z",
-            "", "SELL", symbol, f"{qty}", f"{price}", f"{net}", f"{-qty}", "", "", "paper"
+            "", "SELL", symbol, f"{qty}", f"{price}", f"{net}", f"{-qty}", "", "", "paper-futures"
         ])
 
     def log_exit(self, state: str, side: str, symbol: str, qty: Decimal,
